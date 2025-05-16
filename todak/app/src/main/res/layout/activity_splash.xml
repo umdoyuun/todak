@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/darkgreen"
+    tools:context=".ui.activity.SplashActivity">
+
+
+    <!-- 거북이 이미지 -->
+
+    <ImageView
+        android:id="@+id/img_speech"
+        android:layout_width="wrap_content"
+        android:layout_height="200dp"
+        android:layout_marginBottom="180dp"
+        android:src="@drawable/img_speech"
+        app:layout_constraintBottom_toBottomOf="@+id/img_turtle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_speech"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="토닥이 오늘도 함께할게요"
+        android:textColor="@color/darkgreen"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/img_speech"
+        app:layout_constraintEnd_toEndOf="@id/img_speech"
+        app:layout_constraintStart_toStartOf="@id/img_speech"
+        app:layout_constraintTop_toTopOf="@id/img_speech"
+        app:layout_constraintVertical_bias="0.45" />
+
+    <!-- 하단 토닥 텍스트 -->
+    <ImageView
+        android:id="@+id/img_turtle"
+        android:layout_width="wrap_content"
+        android:layout_height="220dp"
+        android:src="@drawable/turtle_hi"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="100dp"
+        android:layout_marginTop="10dp"
+        android:src="@drawable/todak"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/img_turtle" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

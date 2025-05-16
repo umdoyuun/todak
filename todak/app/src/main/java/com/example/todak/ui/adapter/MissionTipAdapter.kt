@@ -1,0 +1,36 @@
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.example.todak.R
+
+class MissionTipAdapter : RecyclerView.Adapter<MissionTipAdapter.TipViewHolder>() {
+
+    private var tipsList: List<String> = emptyList()
+
+    fun submitList(tips: List<String>) {
+        this.tipsList = tips
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TipViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_mission_tip, parent, false)
+        return TipViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: TipViewHolder, position: Int) {
+        holder.bind(tipsList[position])
+    }
+
+    override fun getItemCount(): Int = tipsList.size
+
+    class TipViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvTip: TextView = itemView.findViewById(R.id.tv_tip)
+
+        fun bind(tip: String) {
+            tvTip.text = tip
+        }
+    }
+}

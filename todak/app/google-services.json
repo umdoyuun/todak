@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "703280643910",
+    "project_id": "bdi-project-db192",
+    "storage_bucket": "bdi-project-db192.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703280643910:android:ef76961a3e19a0133aef47",
+        "android_client_info": {
+          "package_name": "com.example.todak"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArUvOuzRTljf3Bu6rWzvBPMn79o9VwzXk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

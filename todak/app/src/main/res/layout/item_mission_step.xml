@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="12dp">
+
+    <!-- 단계 번호 배경 -->
+    <TextView
+        android:id="@+id/tv_step_number"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:gravity="center"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="1" />
+
+    <!-- 단계 제목 -->
+    <TextView
+        android:id="@+id/tv_step_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_step_number"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/tv_step_number"
+        app:layout_constraintTop_toTopOf="@id/tv_step_number"
+        tools:text="친구를 상대로 고맙다고 말하기" />
+
+    <!-- 체크박스 추가 -->
+    <CheckBox
+        android:id="@+id/cb_step_complete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_step_content"
+        app:layout_constraintEnd_toEndOf="@+id/tv_step_number"
+        app:layout_constraintStart_toStartOf="@id/tv_step_number"
+        app:layout_constraintTop_toBottomOf="@+id/tv_step_title" />
+
+    <!-- 단계 내용 -->
+    <TextView
+        android:id="@+id/tv_step_content"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="#757575"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/tv_step_number"
+        app:layout_constraintStart_toStartOf="@+id/tv_step_title"
+        app:layout_constraintTop_toBottomOf="@id/tv_step_title"
+        tools:text="친구에게 직접 만나거나 전화로 연락하여 '고맙다'라고 말합니다." />
+
+    <!-- 메모 표시 -->
+    <TextView
+        android:id="@+id/tv_step_note"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/black"
+        android:textSize="12sp"
+        android:visibility="gone"
+        android:textStyle="italic"
+        app:layout_constraintStart_toStartOf="@+id/cb_step_complete"
+        app:layout_constraintTop_toBottomOf="@id/tv_step_content"
+        tools:text="메모: 잘 완료했습니다." />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
