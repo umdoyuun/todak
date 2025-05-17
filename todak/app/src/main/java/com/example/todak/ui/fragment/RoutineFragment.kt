@@ -65,22 +65,6 @@ class RoutineFragment : Fragment() {
         llStepsContainer = view.findViewById(R.id.ll_steps_container)
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
         btnStartRoutine = view.findViewById(R.id.btn_start_routine)
-        val btnEditRoutine = view.findViewById<Button>(R.id.btn_edit_routine)
-        val btnAddRoutine = view.findViewById<Button>(R.id.btn_add_routine)
-
-        // 루틴 추가 버튼 클릭 리스너
-        btnAddRoutine.setOnClickListener {
-            navigateToAddRoutine()
-        }
-
-        // 루틴 수정 버튼 클릭 리스너
-        btnEditRoutine.setOnClickListener {
-            if (currentRoutine != null) {
-                navigateToEditRoutine(currentRoutine!!)
-            } else {
-                Toast.makeText(context, "수정할 루틴이 없습니다.", Toast.LENGTH_SHORT).show()
-            }
-        }
 
         // 시작 버튼 클릭 리스너 설정 - 다이얼로그 없이 직접 시작
         btnStartRoutine.setOnClickListener {
@@ -224,7 +208,6 @@ class RoutineFragment : Fragment() {
         tvProgress.visibility = View.VISIBLE
         tvStartStatus?.visibility = View.VISIBLE
         llStepsContainer.visibility = View.VISIBLE
-        btnStartRoutine.visibility = View.VISIBLE
         tvEmptyState.visibility = View.GONE
     }
 
@@ -239,25 +222,15 @@ class RoutineFragment : Fragment() {
     private fun updateStartButtonState(routine: RoutineItem) {
         // 루틴 진행 상태에 따른 버튼 업데이트
         when {
-            // 루틴이 완료된 경우 (100% 이상)
-            routine.started && routine.progress.progress_percentage >= 100.0 -> {
-                btnStartRoutine.text = "루틴 완료"
-                btnStartRoutine.isEnabled = false
-                // 버튼 색상을 회색으로 변경
-                btnStartRoutine.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.gray)
-            }
-            // 루틴이 시작되었지만 완료되지 않은 경우
             routine.started -> {
-                btnStartRoutine.text = "루틴 진행 중"
-                btnStartRoutine.isEnabled = false
-                // 버튼 색상을 회색으로 변경
-                btnStartRoutine.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.gray)
+                // 버튼 완전히 숨기기
+                btnStartRoutine.visibility = View.GONE
             }
             // 루틴이 시작되지 않은 경우
             else -> {
                 btnStartRoutine.text = "루틴 시작하기"
                 btnStartRoutine.isEnabled = true
-                // 버튼 색상을
+                btnStartRoutine.visibility = View.VISIBLE
                 btnStartRoutine.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.green)
             }
         }
@@ -314,7 +287,7 @@ class RoutineFragment : Fragment() {
 
         // 소요 시간 설정
         val tvDuration = stepView.findViewById<TextView>(R.id.tv_duration)
-        if (step.duration_minutes > 0) {
+        if (step.duration_minutes > 0 && !(step.status == "completed" || step.status == "skipped")) {
             tvDuration.text = "${step.duration_minutes}분"
             tvDuration.visibility = View.VISIBLE
         } else {
@@ -331,7 +304,7 @@ class RoutineFragment : Fragment() {
                 buttonLayout.visibility = View.GONE
 
                 // 완료 상태 메시지 표시 (녹색 버튼 스타일)
-                tvCompletionStatus.text = "완료했습니다."
+                tvCompletionStatus.text = "완료"
                 val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.button_rounded_background)?.mutate()
                 drawable?.setTint(ContextCompat.getColor(requireContext(), R.color.darkgreen))
                 tvCompletionStatus.background = drawable
@@ -350,7 +323,7 @@ class RoutineFragment : Fragment() {
                 buttonLayout.visibility = View.GONE
 
                 // 건너뛴 상태 메시지 표시 (회색 버튼 스타일)
-                tvCompletionStatus.text = "건너뛴 단계"
+                tvCompletionStatus.text = "포기"
                 val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.button_rounded_background)?.mutate()
                 drawable?.setTint(ContextCompat.getColor(requireContext(), R.color.gray))
                 tvCompletionStatus.background = drawable
@@ -582,39 +555,6 @@ class RoutineFragment : Fragment() {
         tvRoutineDescription.visibility = View.GONE
         tvProgress.visibility = View.GONE
         llStepsContainer.visibility = View.GONE
-    }
-
-    // 루틴 추가 화면으로 이동
-    private fun navigateToAddRoutine() {
-        try {
-            val routineEditFragment = RoutineEditFragment.newInstance()
-
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.frame_container, routineEditFragment)
-                .addToBackStack(null)
-                .commit()
-        } catch (e: Exception) {
-            Log.e(TAG, "RoutineEditFragment 이동 오류", e)
-            Toast.makeText(context, "루틴 추가 화면으로 이동할 수 없습니다.", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // 루틴 수정 화면으로 이동
-    private fun navigateToEditRoutine(routine: RoutineItem) {
-        try {
-            val routineEditFragment = RoutineEditFragment.newInstance(
-                routineId = routine.routine_id,
-                routine = routine
-            )
-
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.frame_container, routineEditFragment)
-                .addToBackStack(null)
-                .commit()
-        } catch (e: Exception) {
-            Log.e(TAG, "RoutineEditFragment 이동 오류", e)
-            Toast.makeText(context, "루틴 수정 화면으로 이동할 수 없습니다.", Toast.LENGTH_SHORT).show()
-        }
     }
 
     // Fragment가 다시 보일 때 데이터를 새로고침

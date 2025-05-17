@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.todak.data.model.NetworkResult
 import com.example.todak.data.model.SetWeeklyBudgetRequest
 import com.example.todak.data.model.SetWeeklyBudgetResponse
+import com.example.todak.data.model.WakeupInfoResponse
 import com.example.todak.data.model.WeeklyBudgetResponse
 import com.example.todak.data.network.RetrofitClient
 import com.example.todak.util.SessionManager
@@ -37,6 +38,29 @@ class BudgetRepository {
             NetworkResult.Error("오류 발생: ${e.message}")
         }
     }
+
+    suspend fun getWakeupInfo(): NetworkResult<WakeupInfoResponse> {
+        return try {
+            // 인증 토큰 확인
+            val userId = SessionManager.getUserId() ?: return NetworkResult.Error("사용자 ID가 없습니다")
+            val token = SessionManager.getAuthToken() ?: return NetworkResult.Error("인증 토큰이 없습니다")
+
+            // API 호출
+            val response = executeWithRetry { apiService.getWakeupInfo(userId, token) }
+
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    NetworkResult.Success(it)
+                } ?: NetworkResult.Error("데이터가 없습니다")
+            } else {
+                NetworkResult.Error("API 오류: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "기상 정보 조회 실패", e)
+            NetworkResult.Error("오류 발생: ${e.message}")
+        }
+    }
+
 
     suspend fun setWeeklyBudget(amount: Int): NetworkResult<SetWeeklyBudgetResponse> {
         return try {

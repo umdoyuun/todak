@@ -2,4 +2,5 @@
 <resources>
     <dimen name="schedule_item_margin">4dp</dimen>
     <dimen name="status_group_margin">16dp</dimen>
+    <dimen name="emotion_icon_size">32dp</dimen>
 </resources>

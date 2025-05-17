@@ -4,10 +4,18 @@ import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.app.Dialog
 import android.app.TimePickerDialog
+import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.text.TextPaint
 import android.text.TextUtils
+import android.text.style.LineBackgroundSpan
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -17,6 +25,7 @@ import android.view.Window
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.CalendarView
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
@@ -26,6 +35,9 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -40,6 +52,12 @@ import com.example.todak.data.repository.ScheduleRepository
 import com.example.todak.ui.activity.MainActivity
 import com.example.todak.ui.adapter.ScheduleAdapter
 import com.example.todak.ui.modal.EmotionCheckModal
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
+import com.prolificinteractive.materialcalendarview.CalendarDay
+import com.prolificinteractive.materialcalendarview.DayViewDecorator
+import com.prolificinteractive.materialcalendarview.DayViewFacade
+import com.prolificinteractive.materialcalendarview.MaterialCalendarView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -52,15 +70,31 @@ class ScheduleFragment : Fragment() {
     private lateinit var rvSchedule: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvEmptyState: TextView
-    private lateinit var btnAddSchedule: Button
+    private lateinit var btnAddScheduleCal: MaterialButton
+    private lateinit var btnAddSchedule: MaterialButton
+    private lateinit var btnBackToCalendar: MaterialButton
+    private lateinit var calendarView: MaterialCalendarView
+    private lateinit var calendarContainer: ConstraintLayout
+    private lateinit var listContainer: ConstraintLayout
+    private lateinit var tvCurrentMonth: TextView
+    private lateinit var btnPrevMonth: ImageButton
+    private lateinit var btnNextMonth: ImageButton
 
     private lateinit var scheduleAdapter: ScheduleAdapter
     private val scheduleRepository = ScheduleRepository()
     private val TAG = "ScheduleFragment"
 
+    // 선택된 날짜 상태 변수
+    private var selectedDate: String = ""
+    private var selectedCalendar: Calendar = Calendar.getInstance()
+    private var allSchedules: List<ScheduleItem> = emptyList()
+
     // 모달 다이얼로그
     private var scheduleDetailDialog: Dialog? = null
     private var scheduleAddDialog: Dialog? = null
+
+    // 현재 UI 모드 (캘린더 또는 목록)
+    private var isListMode = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -80,16 +114,31 @@ class ScheduleFragment : Fragment() {
         rvSchedule = view.findViewById(R.id.rv_schedule)
         progressBar = view.findViewById(R.id.progress_bar)
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
+        btnAddScheduleCal = view.findViewById(R.id.btn_add_schedule_calender)
         btnAddSchedule = view.findViewById(R.id.btn_add_schedule)
+        btnBackToCalendar = view.findViewById(R.id.btn_back_to_calendar)
+        calendarView = view.findViewById(R.id.calendarView)
+        calendarContainer = view.findViewById(R.id.calendar_container)
+        listContainer = view.findViewById(R.id.list_container)
+        tvCurrentMonth = view.findViewById(R.id.tv_current_month)
+        btnPrevMonth = view.findViewById(R.id.btn_prev_month)
+        btnNextMonth = view.findViewById(R.id.btn_next_month)
+
+        // 현재 날짜 선택
+        val currentDate = Calendar.getInstance()
+        selectedCalendar = currentDate
+        selectedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentDate.time)
 
         setupDateHeader()
         setupRecyclerView()
-        fetchTodaySchedules()
+        setupCalendarView()
+        setupButtonListeners()
 
-        // 일정 추가 버튼 클릭 리스너 설정
-        btnAddSchedule.setOnClickListener {
-            showAddScheduleModal()
-        }
+        // 전체 일정 데이터를 가져옵니다 (캘린더 데코레이터를 위해)
+        fetchAllSchedules()
+
+        // 초기에는 캘린더 모드로 시작
+        showCalendarMode()
 
         arguments?.let { args ->
             val scheduleId = args.getString("schedule_id")
@@ -97,21 +146,18 @@ class ScheduleFragment : Fragment() {
             val showDetail = args.getBoolean("show_detail", false)
 
             if (showDetail && scheduleId != null) {
-                // 일정 데이터 로드 후 상세 정보 표시
-                fetchTodaySchedules()
+                // 자세한 일정 보기로 전환
+                showListMode()
 
-                // 일정 목록 로드 완료 후 상세 정보 모달 표시를 위한 리스너 설정
                 lifecycleScope.launch {
-                    when (val result = scheduleRepository.getTodaySchedules()) {
+                    when (val result = scheduleRepository.getSchedulesByDate(selectedDate)) {
                         is NetworkResult.Success -> {
                             val schedules = result.data
                             val schedule = schedules.find { it.id == scheduleId }
 
                             schedule?.let {
-                                // 상세 정보 모달 표시
                                 showScheduleDetailModal(it)
 
-                                // 액션 수행 (시작 또는 완료)
                                 when (action) {
                                     "start" -> handleScheduleAction(scheduleId, "start")
                                     "complete" -> handleScheduleAction(scheduleId, "complete")
@@ -123,12 +169,642 @@ class ScheduleFragment : Fragment() {
                         }
                     }
                 }
-            } else {
-                // 일반적인 일정 목록 표시
-                fetchTodaySchedules()
             }
-        } ?: run {
-            fetchTodaySchedules()
+        }
+    }
+
+    // 뒤로가기 처리 메서드 추가
+    fun handleBackPressed(): Boolean {
+        return if (isListMode) {
+            // 목록 모드인 경우 달력 모드로 전환
+            showCalendarMode()
+            true // 뒤로가기 이벤트 소비함 (더 이상 처리하지 않음)
+        } else {
+            // 달력 모드인 경우 기본 뒤로가기 동작 수행 (MainActivity에서 처리)
+            false
+        }
+    }
+
+    private fun setupButtonListeners() {
+
+        btnAddScheduleCal.setOnClickListener {
+            showAddScheduleModal()
+        }
+
+        // 일정 추가 버튼 클릭 리스너
+        btnAddSchedule.setOnClickListener {
+            showAddScheduleModal()
+        }
+
+        // 달력으로 돌아가기 버튼 클릭 리스너
+        btnBackToCalendar.setOnClickListener {
+            showCalendarMode()
+        }
+
+        // 이전 달 버튼 클릭 리스너
+        btnPrevMonth.setOnClickListener {
+            calendarView.goToPrevious()
+        }
+
+        // 다음 달 버튼 클릭 리스너
+        btnNextMonth.setOnClickListener {
+            calendarView.goToNext()
+        }
+    }
+    // 캘린더 모드로 전환
+    private fun showCalendarMode() {
+        isListMode = false
+
+        // 헤더 텍스트 업데이트
+        val dayFormat = SimpleDateFormat("M월 yyyy", Locale.KOREAN)
+        tvCurrentMonth.text = dayFormat.format(selectedCalendar.time)
+
+        // UI 컨테이너 전환
+        calendarContainer.visibility = View.VISIBLE
+        listContainer.visibility = View.GONE
+
+        // 달력으로 돌아가기 버튼 숨기기
+        btnBackToCalendar.visibility = View.GONE
+
+        // 날짜 헤더 업데이트
+        setupDateHeader()
+
+        // 캘린더 뷰로 돌아갈 때 항상 새로 데이터 로딩
+        lifecycleScope.launch {
+            // 로딩 표시
+            progressBar.visibility = View.VISIBLE
+
+            // 전체 일정 데이터 다시 로드
+            when (val result = scheduleRepository.getAllSchedules()) {
+                is NetworkResult.Success -> {
+                    allSchedules = result.data
+
+                    // 캘린더 데코레이터 업데이트
+                    updateCalendarDecorators()
+
+                    progressBar.visibility = View.GONE
+                }
+                is NetworkResult.Error -> {
+                    progressBar.visibility = View.GONE
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "캘린더 데이터 새로고침 실패: ${result.message}")
+                }
+                is NetworkResult.Loading -> {
+                    progressBar.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    // 목록 모드로 전환
+    private fun showListMode() {
+        isListMode = true
+
+        // UI 컨테이너 전환
+        calendarContainer.visibility = View.GONE
+        listContainer.visibility = View.VISIBLE
+
+        // 달력으로 돌아가기 버튼 표시
+        btnBackToCalendar.visibility = View.VISIBLE
+
+        // 날짜 헤더 업데이트
+        setupDateHeader()
+
+        // 선택된 날짜의 일정 로드
+        fetchSchedulesByDate(selectedDate)
+    }
+
+    private fun setupCalendarView() {
+        // MaterialCalendarView 설정
+        calendarView.setSelectedDate(CalendarDay.today())
+        calendarView.topbarVisible = false  // 내장 헤더 숨기기 (코드에서도 설정)
+
+        // 달 표시 업데이트
+        updateMonthDisplay()
+
+        // 선택 색상을 초록색으로 변경
+        calendarView.selectionColor = ContextCompat.getColor(requireContext(), R.color.middlegreen)
+
+        // 날짜 선택 리스너
+        calendarView.setOnDateChangedListener { widget, date, selected ->
+            val calendar = Calendar.getInstance()
+            calendar.set(date.year, date.month - 1, date.day)
+            selectedCalendar = calendar
+            selectedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+
+            // 목록 모드로 전환
+            showListMode()
+        }
+
+        // 월 변경 리스너 (필요한 경우)
+        calendarView.setOnMonthChangedListener { widget, date ->
+            // 달 표시 업데이트
+            updateMonthDisplay()
+
+            // 전체 일정 데이터를 다시 로드하고 캘린더 데코레이터 업데이트
+            fetchAllSchedules()
+        }
+
+        // 이전/다음 달 버튼 리스너 설정
+        btnPrevMonth.setOnClickListener {
+            calendarView.goToPrevious()
+        }
+
+        btnNextMonth.setOnClickListener {
+            calendarView.goToNext()
+        }
+    }
+
+    // 달 표시 업데이트
+    private fun updateMonthDisplay() {
+        val currentDate = calendarView.currentDate
+        val calendar = Calendar.getInstance()
+        calendar.set(currentDate.year, currentDate.month - 1, 1)
+
+        val monthFormat = SimpleDateFormat("M월 yyyy", Locale.KOREAN)
+        tvCurrentMonth.text = monthFormat.format(calendar.time)
+    }
+
+    private fun setupDateHeader() {
+        // 현재 모드에 따라 날짜 헤더 텍스트 업데이트
+        val dayFormat = if (isListMode) {
+            SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN)
+        } else {
+            SimpleDateFormat("M월 yyyy", Locale.KOREAN)
+        }
+        tvDateHeader.text = dayFormat.format(selectedCalendar.time)
+    }
+
+    // 전체 일정 데이터 가져오기
+    private fun fetchAllSchedules() {
+        progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            when (val result = scheduleRepository.getAllSchedules()) {
+                is NetworkResult.Success -> {
+                    progressBar.visibility = View.GONE
+                    allSchedules = result.data
+
+                    // 캘린더에 일정 표시 업데이트
+                    updateCalendarDecorators()
+
+                    // 현재 선택된 날짜의 일정 로드
+                    fetchSchedulesByDate(selectedDate)
+                }
+                is NetworkResult.Error -> {
+                    progressBar.visibility = View.GONE
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "전체 일정 가져오기 실패: ${result.message}")
+                }
+                is NetworkResult.Loading -> {
+                    progressBar.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    // 캘린더 일정 데코레이터 업데이트
+    private fun updateCalendarDecorators() {
+        // 기존 데코레이터 모두 제거
+        calendarView.removeDecorators()
+
+        // 기본 데코레이터 추가 (오늘 날짜 등)
+        calendarView.addDecorators(
+            TodayDecorator(requireContext())
+        )
+
+        // 일정별 데코레이터 추가
+        val eventDates = mutableMapOf<CalendarDay, MutableList<ScheduleItem>>()
+
+        // 현재 표시 중인 달의 범위 구하기
+        val calendarMonth = calendarView.currentDate
+        val year = calendarMonth.year
+        val month = calendarMonth.month
+
+        // 일정을 날짜별로 그룹화
+        for (schedule in allSchedules) {
+            try {
+                // 기본 시작 날짜 처리
+                val startDateParts = schedule.startDate.split("-")
+                val endDateParts = schedule.endDate.split("-")
+
+                if (startDateParts.size == 3) {
+                    val startYear = startDateParts[0].toInt()
+                    val startMonth = startDateParts[1].toInt()
+                    val startDay = startDateParts[2].toInt()
+
+                    val endYear = endDateParts[0].toInt()
+                    val endMonth = endDateParts[1].toInt()
+                    val endDay = endDateParts[2].toInt()
+
+                    // 일반 일정 처리
+                    val startDate = CalendarDay.from(startYear, startMonth, startDay)
+
+                    // 하루짜리 일정이거나 표시 중인 달에 시작일이 있으면 표시
+                    if ((startYear == endYear && startMonth == endMonth && startDay == endDay) ||
+                        (startYear == year && startMonth == month)) {
+                        addScheduleToEventDates(eventDates, startDate, schedule)
+                    }
+
+                    // 반복 일정 처리
+                    if (schedule.repeat?.type != "none" && schedule.repeat?.type != null) {
+                        processRecurringSchedule(schedule, eventDates, year, month)
+                    }
+
+                    // 여러 날짜에 걸친 일정 처리 (반복이 아닌 경우)
+                    if (!(startYear == endYear && startMonth == endMonth && startDay == endDay) &&
+                        (schedule.repeat?.type == "none" || schedule.repeat?.type == null)) {
+                        processMultiDaySchedule(schedule, eventDates, year, month)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "날짜 변환 오류: ${e.message}")
+            }
+        }
+
+        // 각 날짜에 이벤트 데코레이터 추가
+        eventDates.forEach { (day, schedules) ->
+            calendarView.addDecorator(EventDecorator(requireContext(), day, schedules))
+        }
+    }
+
+    // 일정을 이벤트 날짜 맵에 추가하는 헬퍼 함수
+    private fun addScheduleToEventDates(
+        eventDates: MutableMap<CalendarDay, MutableList<ScheduleItem>>,
+        calendarDay: CalendarDay,
+        schedule: ScheduleItem
+    ) {
+        if (!eventDates.containsKey(calendarDay)) {
+            eventDates[calendarDay] = mutableListOf()
+        }
+        eventDates[calendarDay]?.add(schedule)
+    }
+
+    // 반복 일정 처리 함수
+    private fun processRecurringSchedule(
+        schedule: ScheduleItem,
+        eventDates: MutableMap<CalendarDay, MutableList<ScheduleItem>>,
+        year: Int,
+        month: Int
+    ) {
+        // 표시할 월의 첫날과 마지막 날 계산
+        val firstDayOfMonth = CalendarDay.from(year, month, 1)
+        val calendar = Calendar.getInstance()
+        calendar.set(year, month - 1, 1)
+        val lastDayOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val lastCalendarDay = CalendarDay.from(year, month, lastDayOfMonth)
+
+        // 시작일 날짜 파싱
+        val startDateParts = schedule.startDate.split("-")
+        val startYear = startDateParts[0].toInt()
+        val startMonth = startDateParts[1].toInt()
+        val startDay = startDateParts[2].toInt()
+        val startCalendarDay = CalendarDay.from(startYear, startMonth, startDay)
+
+        // 종료일 날짜 파싱 (있다면)
+        val endDateParts = schedule.endDate.split("-")
+        val endYear = endDateParts[0].toInt()
+        val endMonth = endDateParts[1].toInt()
+        val endDay = endDateParts[2].toInt()
+        val endCalendarDay = CalendarDay.from(endYear, endMonth, endDay)
+
+        // 시작일이 표시 월보다 나중이면 처리하지 않음
+        if (startCalendarDay.isAfter(lastCalendarDay)) {
+            return
+        }
+
+        // 종료일이 표시 월보다 이전이면 처리하지 않음
+        if (endCalendarDay.isBefore(firstDayOfMonth)) {
+            return
+        }
+
+        when (schedule.repeat?.type) {
+            "daily" -> {
+                // 매일 반복
+                calendar.set(year, month - 1, 1) // 현재 월의 첫날
+                while (calendar.get(Calendar.MONTH) == month - 1) {
+                    // 시작일 이후이고 종료일 이전인지 확인
+                    val currentCalendarDay = CalendarDay.from(
+                        calendar.get(Calendar.YEAR),
+                        calendar.get(Calendar.MONTH) + 1,
+                        calendar.get(Calendar.DAY_OF_MONTH)
+                    )
+
+                    if (!currentCalendarDay.isBefore(startCalendarDay) &&
+                        !currentCalendarDay.isAfter(endCalendarDay)) {
+                        addScheduleToEventDates(eventDates, currentCalendarDay, schedule)
+                    }
+
+                    // 다음 날짜로 이동
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                }
+            }
+            "weekly" -> {
+                // 매주 반복 (특정 요일)
+                val daysOfWeek = schedule.repeat?.days ?: emptyList()
+                val dayMapping = mapOf(
+                    "월" to Calendar.MONDAY,
+                    "화" to Calendar.TUESDAY,
+                    "수" to Calendar.WEDNESDAY,
+                    "목" to Calendar.THURSDAY,
+                    "금" to Calendar.FRIDAY,
+                    "토" to Calendar.SATURDAY,
+                    "일" to Calendar.SUNDAY
+                )
+
+                calendar.set(year, month - 1, 1) // 현재 월의 첫날
+                while (calendar.get(Calendar.MONTH) == month - 1) {
+                    // 현재 날짜가 지정된 요일인지 확인
+                    val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+
+                    // 현재 요일이 반복 요일 목록에 있는지 확인
+                    val isScheduledDay = daysOfWeek.any { day ->
+                        dayMapping[day] == dayOfWeek
+                    }
+
+                    if (isScheduledDay) {
+                        // 시작일 이후이고 종료일 이전인지 확인
+                        val currentCalendarDay = CalendarDay.from(
+                            calendar.get(Calendar.YEAR),
+                            calendar.get(Calendar.MONTH) + 1,
+                            calendar.get(Calendar.DAY_OF_MONTH)
+                        )
+
+                        if (!currentCalendarDay.isBefore(startCalendarDay) &&
+                            !currentCalendarDay.isAfter(endCalendarDay)) {
+                            addScheduleToEventDates(eventDates, currentCalendarDay, schedule)
+                        }
+                    }
+
+                    // 다음 날짜로 이동
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                }
+            }
+            "monthly" -> {
+                // 매월 반복 (같은 날짜)
+                val dayOfMonth = startCalendarDay.day
+
+                // 현재 월에 해당 날짜가 있는지 확인
+                if (dayOfMonth <= lastDayOfMonth) {
+                    val currentCalendarDay = CalendarDay.from(year, month, dayOfMonth)
+
+                    // 시작일 이후이고 종료일 이전인지 확인
+                    if (!currentCalendarDay.isBefore(startCalendarDay) &&
+                        !currentCalendarDay.isAfter(endCalendarDay)) {
+                        addScheduleToEventDates(eventDates, currentCalendarDay, schedule)
+                    }
+                }
+            }
+        }
+    }
+
+    // 여러 날짜에 걸친 일정 처리 함수
+    private fun processMultiDaySchedule(
+        schedule: ScheduleItem,
+        eventDates: MutableMap<CalendarDay, MutableList<ScheduleItem>>,
+        year: Int,
+        month: Int
+    ) {
+        // 시작일과 종료일 파싱
+        val startDateParts = schedule.startDate.split("-")
+        val endDateParts = schedule.endDate.split("-")
+
+        val startYear = startDateParts[0].toInt()
+        val startMonth = startDateParts[1].toInt()
+        val startDay = startDateParts[2].toInt()
+
+        val endYear = endDateParts[0].toInt()
+        val endMonth = endDateParts[1].toInt()
+        val endDay = endDateParts[2].toInt()
+
+        // 현재 월의 첫날과 마지막 날
+        val firstDayOfMonth = 1
+        val calendar = Calendar.getInstance()
+        calendar.set(year, month - 1, 1)
+        val lastDayOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        // 현재 월에 표시할 날짜 범위 계산
+        val displayStartDay = if (startYear == year && startMonth == month) startDay else firstDayOfMonth
+        val displayEndDay = if (endYear == year && endMonth == month) endDay else lastDayOfMonth
+
+        // 일정이 현재 월에 있는지 확인
+        if ((startYear < year || (startYear == year && startMonth <= month)) &&
+            (endYear > year || (endYear == year && endMonth >= month))) {
+
+            // 표시 범위 내의 모든 날짜에 일정 추가
+            for (day in displayStartDay..displayEndDay) {
+                val calendarDay = CalendarDay.from(year, month, day)
+                addScheduleToEventDates(eventDates, calendarDay, schedule)
+            }
+        }
+    }
+
+    // 데코레이터 클래스들
+    inner class TodayDecorator(context: Context) : DayViewDecorator {
+        private val drawable = ContextCompat.getDrawable(context, R.drawable.bg_circle_button)?.mutate()?.apply {
+            // 크기를 코드에서 조정
+            val size = 32 * context.resources.displayMetrics.density.toInt() // 32dp 크기로 설정
+            setBounds(0, 0, size, size)
+        }
+        override fun shouldDecorate(day: CalendarDay): Boolean {
+            return day == CalendarDay.today()
+        }
+
+        override fun decorate(view: DayViewFacade) {
+            drawable?.let {
+                view.setBackgroundDrawable(it)
+            }
+        }
+    }
+
+    inner class EventDecorator(
+        private val context: Context,
+        private val day: CalendarDay,
+        private val schedules: List<ScheduleItem>
+    ) : DayViewDecorator {
+
+        override fun shouldDecorate(day: CalendarDay): Boolean {
+            return this.day == day
+        }
+
+        override fun decorate(view: DayViewFacade) {
+            // 모든 일정에 대해 스팬 추가
+            if (schedules.isNotEmpty()) {
+                // 3개 이상인 경우 첫 번째 일정만 표시하고 +N개로 나머지 표시
+                if (schedules.size >= 3) {
+                    // 첫 번째 일정 표시
+                    view.addSpan(ScheduleDotSpan(context, schedules[0], 0))
+
+                    // +N개 표시 (2개 이상인 경우)
+                    val moreText = "+${schedules.size - 1}개"
+                    view.addSpan(MoreEventsSpan(context, moreText, 1))
+                } else {
+                    // 2개 이하면 모두 표시
+                    schedules.forEachIndexed { index, schedule ->
+                        view.addSpan(ScheduleDotSpan(context, schedule, index))
+                    }
+                }
+            }
+        }
+    }
+
+    inner class ScheduleDotSpan(
+        private val context: Context,
+        private val schedule: ScheduleItem,
+        private val index: Int
+    ) : LineBackgroundSpan {
+
+        private val paint = Paint().apply {
+            color = ContextCompat.getColor(context, R.color.lightgreen)
+            isAntiAlias = true
+            style = Paint.Style.FILL
+        }
+
+        override fun drawBackground(
+            canvas: Canvas, paint: Paint, left: Int, right: Int, top: Int,
+            baseline: Int, bottom: Int, text: CharSequence, start: Int, end: Int,
+            lineNumber: Int
+        ) {
+            val density = context.resources.displayMetrics.density
+            val margin = 4 * density
+            val itemHeight = 12 * density
+            val yOffset = bottom + margin + (index * (itemHeight + margin))
+
+            // 사각형 그리기
+            val rect = RectF(
+                left + margin,
+                yOffset,
+                right - margin,
+                yOffset + itemHeight
+            )
+
+            canvas.drawRoundRect(rect, 8f, 8f, this.paint)
+
+            // 텍스트 그리기
+            val textPaint = TextPaint().apply {
+                color = Color.BLACK
+                textSize = 9 * density
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT
+            }
+
+            val title = if (schedule.title.length > 7)
+                "${schedule.title.substring(0, 5)}.."
+            else
+                schedule.title
+
+            val textWidth = textPaint.measureText(title)
+            val textX = (left + right) / 2 - textWidth / 2
+            val textY = yOffset + itemHeight / 2 + textPaint.textSize / 3
+
+            canvas.drawText(title, textX, textY, textPaint)
+        }
+    }
+
+    inner class MoreEventsSpan(
+        private val context: Context,
+        private val text: String,
+        private val index: Int
+    ) : LineBackgroundSpan {
+
+        private val paint = Paint().apply {
+            color = ContextCompat.getColor(context, R.color.darkgreen)
+            isAntiAlias = true
+            style = Paint.Style.FILL
+        }
+
+        override fun drawBackground(
+            canvas: Canvas, paint: Paint, left: Int, right: Int, top: Int,
+            baseline: Int, bottom: Int, text: CharSequence, start: Int, end: Int,
+            lineNumber: Int
+        ) {
+            val density = context.resources.displayMetrics.density
+            val margin = 4 * density
+            val itemHeight = 12 * density
+            val yOffset = bottom + margin + (index * (itemHeight + margin))
+
+            // 사각형 그리기
+            val rect = RectF(
+                left + margin,
+                yOffset,
+                right - margin,
+                yOffset + itemHeight
+            )
+
+            canvas.drawRoundRect(rect, 8f, 8f, this.paint)
+
+            // 텍스트 그리기
+            val textPaint = TextPaint().apply {
+                color = Color.WHITE
+                textSize = 9 * density
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT_BOLD
+            }
+
+            val textWidth = textPaint.measureText(this.text)
+            val textX = (left + right) / 2 - textWidth / 2
+            val textY = yOffset + itemHeight / 2 + textPaint.textSize / 3
+
+            canvas.drawText(this.text, textX, textY, textPaint)
+        }
+    }
+
+    private fun setupRecyclerView() {
+        scheduleAdapter = ScheduleAdapter()
+        rvSchedule.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = scheduleAdapter
+        }
+
+        // 아이템 클릭 리스너 설정
+        scheduleAdapter.setOnItemClickListener(object : ScheduleAdapter.OnItemClickListener {
+            override fun onItemClick(scheduleItem: ScheduleItem) {
+                // 상세보기 모달 다이얼로그 표시
+                showScheduleDetailModal(scheduleItem)
+            }
+        })
+
+        // 월 변경 리스너 (필요한 경우)
+        calendarView.setOnMonthChangedListener { widget, date ->
+            // 모든 일정 데이터를 다시 로드하고 현재 표시 중인 달에 대한 데코레이터 업데이트
+            fetchAllSchedules()
+        }
+    }
+
+    // 일정 목록 로드하는 함수 (목록 모드에서 호출)
+    private fun fetchSchedulesByDate(date: String) {
+        progressBar.visibility = View.VISIBLE
+        tvEmptyState.visibility = View.GONE
+
+        lifecycleScope.launch {
+            when (val result = scheduleRepository.getSchedulesByDate(date)) {
+                is NetworkResult.Success -> {
+                    progressBar.visibility = View.GONE
+
+                    val schedules = result.data
+                    if (schedules.isEmpty()) {
+                        tvEmptyState.visibility = View.VISIBLE
+                        rvSchedule.visibility = View.GONE
+                    } else {
+                        tvEmptyState.visibility = View.GONE
+                        rvSchedule.visibility = View.VISIBLE
+                        scheduleAdapter.submitList(schedules)
+                    }
+
+                    Log.d(TAG, "$date 일정 가져오기 성공: ${schedules.size}개 항목")
+                }
+                is NetworkResult.Error -> {
+                    progressBar.visibility = View.GONE
+                    tvEmptyState.visibility = View.VISIBLE
+                    rvSchedule.visibility = View.GONE
+
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "일정 가져오기 실패: ${result.message}")
+                }
+                is NetworkResult.Loading -> {
+                    progressBar.visibility = View.VISIBLE
+                }
+            }
         }
     }
 
@@ -198,7 +874,7 @@ class ScheduleFragment : Fragment() {
 
                         // 서버 상태가 UI에 완전히 반영되도록 약간의 지연 후 데이터 새로고침
                         delay(300) // 300ms 지연
-                        fetchTodaySchedules()
+                        fetchSchedulesByDate(selectedDate)
 
                     }
                     is NetworkResult.Error -> {
@@ -269,74 +945,14 @@ class ScheduleFragment : Fragment() {
         }
     }
 
-    private fun setupDateHeader() {
-        // 현재 날짜를 한글로 표시 (예: 5월 2일 금요일)
-        val currentDate = Calendar.getInstance()
-        val dayFormat = SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN)
-        tvDateHeader.text = dayFormat.format(currentDate.time)
-    }
-
-    private fun setupRecyclerView() {
-        scheduleAdapter = ScheduleAdapter()
-        rvSchedule.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = scheduleAdapter
-        }
-
-        // 아이템 클릭 리스너 설정
-        scheduleAdapter.setOnItemClickListener(object : ScheduleAdapter.OnItemClickListener {
-            override fun onItemClick(scheduleItem: ScheduleItem) {
-                // 상세보기 모달 다이얼로그 표시
-                showScheduleDetailModal(scheduleItem)
-            }
-        })
-    }
-
-    private fun fetchTodaySchedules() {
-        progressBar.visibility = View.VISIBLE
-        tvEmptyState.visibility = View.GONE
-
-        lifecycleScope.launch {
-            when (val result = scheduleRepository.getTodaySchedules()) {
-                is NetworkResult.Success -> {
-                    progressBar.visibility = View.GONE
-
-                    val schedules = result.data
-                    if (schedules.isEmpty()) {
-                        tvEmptyState.visibility = View.VISIBLE
-                        rvSchedule.visibility = View.GONE
-                    } else {
-                        tvEmptyState.visibility = View.GONE
-                        rvSchedule.visibility = View.VISIBLE
-                        scheduleAdapter.submitList(schedules)
-                    }
-
-                    Log.d(TAG, "일정 가져오기 성공: ${schedules.size}개 항목")
-                }
-                is NetworkResult.Error -> {
-                    progressBar.visibility = View.GONE
-                    tvEmptyState.visibility = View.VISIBLE
-                    rvSchedule.visibility = View.GONE
-
-                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
-                    Log.e(TAG, "일정 가져오기 실패: ${result.message}")
-                }
-                is NetworkResult.Loading -> {
-                    progressBar.visibility = View.VISIBLE
-                }
-            }
-        }
-    }
-
-    // 일정 추가 모달 다이얼로그 표시
+    // 기존의 일정 추가 모달에서 날짜 초기값을 선택된 날짜로 설정
     private fun showAddScheduleModal() {
         // 이미 열려있는 다이얼로그가 있다면 닫기
         dismissAddScheduleModal()
 
-        // 현재 날짜와 시간 정보 초기화
-        val calendar = Calendar.getInstance()
+        // 선택된 날짜 정보 초기화
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        var startDate = dateFormat.format(calendar.time)
+        var startDate = selectedDate
         var endDate = startDate
         var startTime = "09:00"
         var endTime = "11:00"
@@ -398,10 +1014,10 @@ class ScheduleFragment : Fragment() {
                 }
             }
 
-            // 날짜 초기화 및 클릭 리스너 설정
+            // 날짜 초기화 및 클릭 리스너 설정 - 선택된 날짜로 초기화
             val displayDateFormat = SimpleDateFormat("yyyy.MM.dd(E)", Locale.KOREAN)
-            tvStartDate.text = displayDateFormat.format(calendar.time)
-            tvEndDate.text = displayDateFormat.format(calendar.time)
+            tvStartDate.text = displayDateFormat.format(selectedCalendar.time)
+            tvEndDate.text = displayDateFormat.format(selectedCalendar.time)
 
             tvStartDate.setOnClickListener {
                 showDatePicker(tvStartDate) { selectedDate ->
@@ -538,8 +1154,16 @@ class ScheduleFragment : Fragment() {
                 when (result) {
                     is NetworkResult.Success -> {
                         Toast.makeText(requireContext(), "일정이 추가되었습니다", Toast.LENGTH_SHORT).show()
-                        // 일정 목록 새로고침
-                        fetchTodaySchedules()
+                        // 현재 모드에 따라 다른 새로고침 방식 적용
+                        if (isListMode) {
+                            // 목록 모드인 경우 선택된 날짜의 일정 목록 새로고침
+                            refreshScheduleList()
+                        } else {
+                            // 전체 일정 데이터를 새로 로드하여 캘린더 및 목록 모두 갱신
+                            fetchAllSchedules()
+                            // 캘린더 모드인 경우 캘린더 데코레이터 업데이트
+                            updateCalendarDecorators()
+                        }
                     }
                     is NetworkResult.Error -> {
                         Toast.makeText(requireContext(), "일정 추가 실패: ${result.message}", Toast.LENGTH_SHORT).show()
@@ -556,6 +1180,28 @@ class ScheduleFragment : Fragment() {
                 Toast.makeText(requireContext(), "오류 발생: ${e.message}", Toast.LENGTH_SHORT).show()
                 Log.e(TAG, "일정 추가 오류", e)
             }
+        }
+    }
+
+    // 일정 생성 API 호출 성공 후 호출할 함수
+    private fun refreshScheduleList() {
+        lifecycleScope.launch {
+            // 기존 어댑터 상태 저장
+            val oldAdapter = scheduleAdapter
+
+            // 새 어댑터 생성 및 설정
+            scheduleAdapter = ScheduleAdapter()
+            rvSchedule.adapter = scheduleAdapter
+
+            // 아이템 클릭 리스너 다시 설정
+            scheduleAdapter.setOnItemClickListener(object : ScheduleAdapter.OnItemClickListener {
+                override fun onItemClick(scheduleItem: ScheduleItem) {
+                    showScheduleDetailModal(scheduleItem)
+                }
+            })
+
+            // 데이터 다시 로드
+            fetchSchedulesByDate(selectedDate)
         }
     }
 
@@ -662,6 +1308,7 @@ class ScheduleFragment : Fragment() {
                 tvTimeValue.visibility = View.GONE
                 tvDateValue.visibility = View.GONE
                 tvNoteContent.visibility = View.GONE
+                ivDelete.visibility = View.GONE
                 ivEdit.visibility = View.GONE
 
                 // 수정 모드 UI 표시
@@ -837,7 +1484,7 @@ class ScheduleFragment : Fragment() {
                     is NetworkResult.Success -> {
                         Toast.makeText(requireContext(), "일정이 업데이트되었습니다", Toast.LENGTH_SHORT).show()
                         // 일정 목록 새로고침
-                        fetchTodaySchedules()
+                        fetchSchedulesByDate(selectedDate)
                     }
                     is NetworkResult.Error -> {
                         Toast.makeText(requireContext(), "일정 업데이트 실패: ${result.message}", Toast.LENGTH_SHORT).show()
@@ -998,7 +1645,7 @@ class ScheduleFragment : Fragment() {
                     is NetworkResult.Success -> {
                         Toast.makeText(requireContext(), "일정이 삭제되었습니다", Toast.LENGTH_SHORT).show()
                         // 일정 목록 새로고침
-                        fetchTodaySchedules()
+                        fetchSchedulesByDate(selectedDate)
                     }
                     is NetworkResult.Error -> {
                         Toast.makeText(requireContext(), "일정 삭제 실패: ${result.message}", Toast.LENGTH_SHORT).show()

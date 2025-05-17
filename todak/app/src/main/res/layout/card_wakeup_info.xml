@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_wakeup_info"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="10dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp">
+
+    <!-- 로딩 상태 레이아웃 -->
+    <FrameLayout
+        android:id="@+id/wakeup_loading_layout"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:visibility="visible">
+
+        <ProgressBar
+            android:id="@+id/wakeup_loading_progress"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="40dp"
+            android:text="기상 정보 로딩 중..."
+            android:textColor="@color/gray"
+            android:textSize="14sp" />
+    </FrameLayout>
+
+    <!-- 기상 정보 없음 레이아웃 -->
+    <FrameLayout
+        android:id="@+id/wakeup_no_info_layout"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="기상 추천 정보는 매일 오후 5시에 계산됩니다."
+                android:textAlignment="center"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 기상 정보 콘텐츠 레이아웃 -->
+    <LinearLayout
+        android:id="@+id/wakeup_content_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <!-- 상단 타이틀 영역 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="내일의 기상 정보"
+                android:textColor="@android:color/black"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_target_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/darkgray"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="2025-05-17" />
+        </LinearLayout>
+
+        <!-- 기상 요약 메시지 (항상 표시) -->
+        <TextView
+            android:id="@+id/tv_wakeup_summary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="6dp"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            tools:text="내일의 추천 기상 시간은 07:30입니다." />
+
+        <!-- 기상 상세 메시지 (펼쳤을 때만 표시) -->
+        <TextView
+            android:id="@+id/tv_wakeup_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/darkgray"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            android:layout_marginHorizontal="12dp"
+            android:visibility="gone"
+            tools:text="첫 일정은 13:00의 '예룸 카페 알바'입니다. 맑은 날씨가 예상됩니다." />
+
+        <!-- 펼침/접힘 표시 아이콘 -->
+        <ImageView
+            android:id="@+id/iv_expand_indicator"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:src="@drawable/icon_expand_more"
+            android:contentDescription="펼치기/접기" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

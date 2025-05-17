@@ -26,23 +26,22 @@ data class ScheduleListResponse(
     val schedules: List<ScheduleResponse>
 )
 
-// 개별 일정 항목
 data class ScheduleResponse(
     val _id: String,
     val user_id: String,
     val creator_id: String,
     val title: String,
-    val category: String,
+    val category: String?,  // nullable로 변경
     val start_date: String,
     val end_date: String,
     val start_time: String,
     val end_time: String,
     val repeat: RepeatInfo,
-    val note: String,
+    val note: String?,      // nullable로 변경
     val created_at: String,
-    val status: String,
-    val last_status_update: String,
-    val status_notes: String
+    val status: String?,    // nullable로 변경
+    val last_status_update: String?,
+    val status_notes: String?
 )
 
 // 반복 정보
@@ -55,13 +54,16 @@ data class RepeatInfo(
 data class ScheduleItem(
     val id: String,
     val title: String,
+    val startDate: String,  // 추가된 필드
+    val endDate: String,    // 추가된 필드
     val startTime: String,
     val endTime: String,
     val category: String,
     val isCompleted: Boolean,
     val showTimeline: Boolean,
     val note: String,
-    val status: ScheduleStatus = ScheduleStatus.NOT_STARTED
+    val status: ScheduleStatus = ScheduleStatus.NOT_STARTED,
+    val repeat: RepeatInfo? = null  // 추가
 )
 
 enum class ScheduleStatus {

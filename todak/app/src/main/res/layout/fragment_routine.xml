@@ -16,26 +16,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 추가 버튼 -->
-        <Button
-            android:id="@+id/btn_add_routine"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:backgroundTint="@color/green"
-            android:includeFontPadding="false"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:paddingStart="12dp"
-            android:paddingTop="0dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="0dp"
-            android:text="+ 추가"
-            android:textColor="@android:color/white"
-            android:textSize="16sp"
-            app:layout_constraintBottom_toBottomOf="@id/tv_routine_title"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/tv_routine_title" />
-
         <TextView
             android:id="@+id/tv_routine_title"
             android:layout_width="0dp"
@@ -126,6 +106,7 @@
 
             <!-- 루틴 단계 컨테이너 -->
             <LinearLayout
+                android:layout_marginTop="8dp"
                 android:id="@+id/ll_steps_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -143,17 +124,6 @@
         android:orientation="vertical"
         android:padding="16dp"
         app:layout_constraintBottom_toBottomOf="parent">
-
-        <!-- 편집 버튼 -->
-        <Button
-            android:id="@+id/btn_edit_routine"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/green"
-            android:text="루틴 편집"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:layout_marginBottom="12dp" />
 
         <!-- 시작 버튼 -->
         <Button

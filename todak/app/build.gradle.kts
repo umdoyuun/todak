@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.implementation
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -118,4 +119,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("androidx.lifecycle:lifecycle-process:2.6.2")
     implementation("androidx.lifecycle:lifecycle-runtime:2.6.2")
+
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    implementation("com.github.prolificinteractive:material-calendarview:2.0.1")
+
 }

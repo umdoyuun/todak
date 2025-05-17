@@ -22,7 +22,8 @@
             android:id="@+id/ivTodak"
             android:layout_width="100dp"
             android:layout_height="100dp"
-            android:src="@drawable/todak" />
+            android:src="@drawable/todak"
+            app:tint="@color/white"/>
 
         <ImageView
             android:id="@+id/ivTurtle"
@@ -70,39 +71,36 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/edit_text_border"
-            android:orientation="horizontal">
+            android:background="@drawable/edit_text_border">
 
             <EditText
                 android:id="@+id/etPassword"
-                android:layout_width="0dp"
+                android:layout_width="364dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:background="@drawable/edit_text_border"
                 android:hint="비밀번호 입력"
                 android:inputType="textPassword"
                 android:padding="12dp"
-                android:background="@android:color/transparent"
                 android:textSize="16sp" />
 
             <ImageButton
                 android:id="@+id/btnTogglePassword"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:layout_marginEnd="12dp"
                 android:adjustViewBounds="true"
-                android:scaleType="centerInside"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:maxWidth="24dp"
                 android:maxHeight="24dp"
+                android:scaleType="centerInside"
+                android:layout_gravity="end|center_vertical"
                 android:src="@drawable/icon_visibility_off"
                 app:tint="@color/darkgray" />
-
-
-        </LinearLayout>
+        </FrameLayout>
 
         <Button
             android:id="@+id/btnLogin"
@@ -112,7 +110,7 @@
             android:layout_marginTop="24dp"
             android:backgroundTint="@color/green"
             android:text="로그인"
-            android:textColor="@color/darkgreen"
+            android:textColor="@color/white"
             android:textSize="16sp"
             android:textStyle="bold" />
 

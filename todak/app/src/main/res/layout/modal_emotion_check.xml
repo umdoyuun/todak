@@ -64,6 +64,14 @@
             app:layout_constraintBottom_toBottomOf="parent">
 
             <ImageView
+                android:id="@+id/iv_emotion_angry"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:src="@drawable/emotion_angry"
+                android:contentDescription="화남" />
+
+            <ImageView
                 android:id="@+id/iv_emotion_anxious"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -94,14 +102,6 @@
                 android:layout_weight="1"
                 android:src="@drawable/emotion_happy"
                 android:contentDescription="행복" />
-
-            <ImageView
-                android:id="@+id/iv_emotion_angry"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:src="@drawable/emotion_angry"
-                android:contentDescription="화남" />
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 

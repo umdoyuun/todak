@@ -20,7 +20,7 @@
             android:layout_height="wrap_content"
             android:text="테스트"
             android:textColor="@color/black"
-            android:textSize="24sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -46,7 +46,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/iv_close"
             app:layout_constraintEnd_toStartOf="@id/iv_edit"
             app:layout_constraintTop_toTopOf="@+id/iv_close"
-            app:tint="@color/middlegreen" />
+            app:tint="@color/darkgreen" />
 
         <!-- 수정 버튼 -->
         <ImageView
@@ -58,7 +58,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/iv_close"
             app:layout_constraintEnd_toStartOf="@id/iv_close"
             app:layout_constraintTop_toTopOf="@+id/iv_close"
-            app:tint="@color/middlegreen" />
+            app:tint="@color/darkgreen" />
 
         <!-- 저장 버튼 -->
         <ImageView
@@ -68,21 +68,23 @@
             android:layout_marginEnd="8dp"
             android:src="@drawable/icon_save"
             android:visibility="gone"
-            app:tint="@color/middlegreen"
+            app:tint="@color/darkgreen"
             app:layout_constraintBottom_toBottomOf="@+id/iv_close"
             app:layout_constraintEnd_toStartOf="@id/iv_close"
             app:layout_constraintTop_toTopOf="@+id/iv_close" />
 
-        <!-- 닫기 버튼 -->
+        <!-- 상단 닫기 버튼 (오른쪽에 추가) -->
         <ImageButton
             android:id="@+id/iv_close"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="채팅 닫기"
+            android:scaleType="fitCenter"
             android:background="@null"
-            android:contentDescription="닫기"
             android:src="@drawable/icon_close"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/darkgray" />
 
         <!-- 구분선 -->
         <View
@@ -118,7 +120,7 @@
                 android:layout_marginStart="16dp"
                 android:text="일시"
                 android:textColor="@color/black"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toEndOf="@id/iv_time"
                 app:layout_constraintTop_toTopOf="@id/iv_time" />
@@ -132,7 +134,7 @@
                 android:layout_marginTop="4dp"
                 android:text="2025.04.22(화)"
                 android:textColor="#666666"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@id/iv_time"
                 app:layout_constraintTop_toBottomOf="@id/tv_time_label" />
@@ -145,7 +147,7 @@
                 android:layout_marginTop="4dp"
                 android:text="오전 9시 - 오후 1시"
                 android:textColor="#666666"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@id/iv_time"
                 app:layout_constraintTop_toBottomOf="@id/tv_date_value" />
@@ -209,7 +211,8 @@
                 android:layout_height="32dp"
                 android:src="@drawable/icon_info"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/black" />
 
             <TextView
                 android:id="@+id/tv_note_label"
@@ -218,7 +221,7 @@
                 android:layout_marginStart="16dp"
                 android:text="기타사항"
                 android:textColor="@color/black"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toEndOf="@id/iv_note"
                 app:layout_constraintTop_toTopOf="@id/iv_note" />
@@ -232,7 +235,7 @@
                 android:layout_marginTop="4dp"
                 android:layout_marginBottom="16dp"
                 android:textColor="#666666"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@id/iv_note"
@@ -277,7 +280,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:backgroundTint="@color/middlegreen"
+                android:backgroundTint="@color/green"
                 android:text="시작하기"
                 android:textColor="@color/white"
                 android:visibility="visible"

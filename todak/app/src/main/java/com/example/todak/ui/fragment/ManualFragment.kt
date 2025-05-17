@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.todak.R
 import com.example.todak.data.model.NetworkResult
 import com.example.todak.data.repository.ApiRepository
+import com.example.todak.ui.activity.MainActivity
 import com.example.todak.ui.adapter.Shop
 import com.example.todak.ui.adapter.ShopAdapter
 import kotlinx.coroutines.launch
@@ -31,6 +32,8 @@ class ManualFragment : Fragment() {
     ): View? {
         // Inflate the layout for this fragment
         val view = inflater.inflate(R.layout.fragment_manual, container, false)
+
+        (activity as? MainActivity)?.setToolbarTitle("가게 목록")
 
         // RecyclerView 초기화
         recyclerView = view.findViewById(R.id.recycler_shops)

@@ -20,6 +20,112 @@ class ScheduleRepository {
     private val apiService = RetrofitClient.apiService
     private val TAG = "ScheduleRepository"
 
+    // 전체 일정을 가져오는 함수
+    suspend fun getAllSchedules(): NetworkResult<List<ScheduleItem>> {
+        return try {
+            // 저장된 액세스 토큰과 사용자 ID 가져오기
+            val accessToken = SessionManager.getAuthToken()
+            val userId = SessionManager.getUserId()
+
+            if (accessToken.isNullOrEmpty()) {
+                Log.e(TAG, "토큰이 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("토큰이 없습니다. 로그인이 필요합니다.")
+            }
+
+            if (userId.isNullOrEmpty()) {
+                Log.e(TAG, "사용자 ID가 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("사용자 ID가 없습니다. 로그인이 필요합니다.")
+            }
+
+            // API 호출
+            val response = apiService.getAllSchedules(
+                userId = userId,
+                authorization = "Bearer $accessToken"
+            )
+
+            if (response.isSuccessful) {
+                response.body()?.let { scheduleListResponse ->
+                    val schedules = scheduleListResponse.schedules
+                    Log.d(TAG, "전체 일정 목록 가져오기 성공: ${schedules.size}개 항목")
+
+                    // ScheduleItem으로 변환
+                    val scheduleItems = convertToScheduleItems(schedules)
+                    NetworkResult.Success(scheduleItems)
+                } ?: run {
+                    Log.e(TAG, "응답 본문이 비어 있습니다")
+                    NetworkResult.Error("응답 본문이 비어 있습니다")
+                }
+            } else {
+                val errorMsg = "API 호출 실패: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMsg)
+                NetworkResult.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "전체 일정 목록 가져오기 오류", e)
+            NetworkResult.Error("오류 발생: ${e.message}")
+        }
+    }
+
+    // 특정 날짜의 일정을 가져오는 함수
+    suspend fun getSchedulesByDate(targetDate: String): NetworkResult<List<ScheduleItem>> {
+        return try {
+            // 저장된 액세스 토큰과 사용자 ID 가져오기
+            val accessToken = SessionManager.getAuthToken()
+            val userId = SessionManager.getUserId()
+
+            if (accessToken.isNullOrEmpty()) {
+                Log.e(TAG, "토큰이 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("토큰이 없습니다. 로그인이 필요합니다.")
+            }
+
+            if (userId.isNullOrEmpty()) {
+                Log.e(TAG, "사용자 ID가 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("사용자 ID가 없습니다. 로그인이 필요합니다.")
+            }
+
+            // API 호출
+            val response = apiService.getTodayScheduleList(
+                userId = userId,
+                authorization = "Bearer $accessToken",
+                targetDate = targetDate
+            )
+
+            if (response.isSuccessful) {
+                response.body()?.let { scheduleListResponse ->
+                    val schedules = scheduleListResponse.schedules
+                    Log.d(TAG, "$targetDate 일정 목록 가져오기 성공: ${schedules.size}개 항목")
+
+                    // 시간 순으로 정렬
+                    val sortedSchedules = schedules.sortedBy { it.start_time }
+
+                    // ScheduleItem으로 변환
+                    val scheduleItems = convertToScheduleItems(sortedSchedules)
+
+                    // 상태별로 정렬 (완료와 연기는 같은 그룹, 진행 중, 시작 전 순서)
+                    val sortedByStatus = scheduleItems.sortedWith(compareBy {
+                        when (it.status) {
+                            ScheduleStatus.COMPLETED, ScheduleStatus.POSTPONED -> 0  // 완료와 연기를 같은 우선순위로
+                            ScheduleStatus.IN_PROGRESS -> 1  // 진행 중
+                            ScheduleStatus.NOT_STARTED -> 2  // 시작 전
+                        }
+                    })
+
+                    NetworkResult.Success(sortedByStatus)
+                } ?: run {
+                    Log.e(TAG, "응답 본문이 비어 있습니다")
+                    NetworkResult.Error("응답 본문이 비어 있습니다")
+                }
+            } else {
+                val errorMsg = "API 호출 실패: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMsg)
+                NetworkResult.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "일정 목록 가져오기 오류", e)
+            NetworkResult.Error("오류 발생: ${e.message}")
+        }
+    }
+
     suspend fun getTodaySchedules(): NetworkResult<List<ScheduleItem>> {
         return try {
             // 저장된 액세스 토큰과 사용자 ID 가져오기
@@ -37,7 +143,7 @@ class ScheduleRepository {
             }
 
             // API 호출
-            val response = apiService.getTodaySchedules(
+            val response = apiService.getTodayScheduleList(
                 userId = userId,
                 authorization = "Bearer $accessToken"
             )
@@ -199,28 +305,29 @@ class ScheduleRepository {
             val formattedStartTime = formatTime(schedule.start_time)
             val formattedEndTime = formatTime(schedule.end_time)
 
-            val status = when (schedule.status.lowercase()) {
-                "pending" -> ScheduleStatus.NOT_STARTED
-                "started" -> ScheduleStatus.IN_PROGRESS
-                "completed" -> ScheduleStatus.COMPLETED
-                "postponed" -> ScheduleStatus.POSTPONED
-                else -> ScheduleStatus.NOT_STARTED
-            }
-
-            // 타임라인 표시 여부 (마지막 항목이 아닌 경우에만)
-            val showTimeline = index < schedules.size - 1
-
             ScheduleItem(
                 id = schedule._id,
                 title = schedule.title,
+                startDate = schedule.start_date,
+                endDate = schedule.end_date,
                 startTime = formattedStartTime,
                 endTime = formattedEndTime,
-                category = schedule.category,
-                isCompleted = status == ScheduleStatus.COMPLETED,
-                showTimeline = showTimeline,
-                note = schedule.note,
-                status = status
+                category = schedule.category ?: "기타",  // null 체크
+                isCompleted = schedule.status == "completed",  // status가 null이면 false가 됨
+                showTimeline = true,
+                note = schedule.note ?: "",  // null 체크
+                status = convertStatusFromString(schedule.status),  // status가 null일 수 있음
+                repeat = schedule.repeat  // repeat가 null일 수 있음
             )
+        }
+    }
+
+    private fun convertStatusFromString(status: String?): ScheduleStatus {
+        return when (status) {
+            "started" -> ScheduleStatus.IN_PROGRESS
+            "completed" -> ScheduleStatus.COMPLETED
+            "postponed" -> ScheduleStatus.POSTPONED
+            else -> ScheduleStatus.NOT_STARTED
         }
     }
 

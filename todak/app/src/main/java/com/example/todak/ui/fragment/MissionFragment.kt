@@ -31,7 +31,8 @@ class MissionFragment : Fragment() {
 
     // 미션 데이터
     private var allMissions: List<MissionItem> = emptyList()
-    private var participatingMissions: List<MissionItem> = emptyList()
+    private var participatingMissions: List<MissionItem> = emptyList()    // 진행 중 + 시작 전
+    private var completedParticipationMissions: List<MissionItem> = emptyList() // 완료 + 포기
     private var availableMissions: List<MissionItem> = emptyList()
 
     // 참가 중인 미션의 세부 카테고리
@@ -65,14 +66,20 @@ class MissionFragment : Fragment() {
     private fun setupViewPager() {
         // 미션 개수 계산
         val participatingCount = participatingMissions.size
+        val completedParticipationCount = completedParticipationMissions.size
         val availableCount = availableMissions.size
 
         // 탭 목록 정의 (개수 포함)
-        val mainTabs = listOf("참가 중 ($participatingCount)", "참가 가능 ($availableCount)")
+        val mainTabs = listOf(
+            "참가 중 ($participatingCount)",
+            "참가 가능 ($availableCount)",
+            "참가 완료 ($completedParticipationCount)"
+        )
 
         // 참가 중 탭의 하위 카테고리 정의
         val subTabs = mapOf(
-            "참가 중 ($participatingCount)" to listOf("전체", "시작 전", "진행 중", "완료", "포기"),
+            "참가 중 ($participatingCount)" to listOf("전체", "시작 전", "진행 중"),
+            "참가 완료 ($completedParticipationCount)" to listOf("전체", "완료", "포기"),
             "참가 가능 ($availableCount)" to listOf("전체")
         )
 
@@ -81,7 +88,10 @@ class MissionFragment : Fragment() {
             "참가 중 ($participatingCount)" to mapOf(
                 "전체" to participatingMissions,
                 "시작 전" to pendingMissions,
-                "진행 중" to inProgressMissions,
+                "진행 중" to inProgressMissions
+            ),
+            "참가 완료 ($completedParticipationCount)" to mapOf(
+                "전체" to completedParticipationMissions,
                 "완료" to completedMissions,
                 "포기" to failedMissions
             ),
@@ -161,7 +171,19 @@ class MissionFragment : Fragment() {
 
     // 참가 상태에 따라 미션 분류
     private fun categorizeByParticipationStatus() {
-        participatingMissions = allMissions.filter { it.is_participated }
+        // 참가 중인 미션은 is_participated가 true이고 상태가 pending 또는 in_progress인 것만
+        participatingMissions = allMissions.filter {
+            it.is_participated &&
+                    (it.participation_status == "pending" || it.participation_status == "in_progress")
+        }
+
+        // 참가 완료 미션은 is_participated가 true이고 상태가 completed 또는 failed인 것만
+        completedParticipationMissions = allMissions.filter {
+            it.is_participated &&
+                    (it.participation_status == "completed" || it.participation_status == "failed")
+        }
+
+        // 참가 가능한 미션은 is_participated가 false인 것
         availableMissions = allMissions.filter { !it.is_participated }
     }
 
@@ -169,11 +191,15 @@ class MissionFragment : Fragment() {
     private fun categorizeParticipatingMissions() {
         pendingMissions = participatingMissions.filter { it.participation_status == "pending" }
         inProgressMissions = participatingMissions.filter { it.participation_status == "in_progress" }
-        completedMissions = participatingMissions.filter { it.participation_status == "completed" }
-        failedMissions = participatingMissions.filter { it.participation_status == "failed" }
+        completedMissions = completedParticipationMissions.filter { it.participation_status == "completed" }
+        failedMissions = completedParticipationMissions.filter { it.participation_status == "failed" }
 
         // 참가 중인 미션 전체 리스트도 상태에 따라 정렬
         participatingMissions = sortMissionsByParticipationStatus(participatingMissions)
+
+        // 참가 완료 미션 전체 리스트도 상태에 따라 정렬
+        completedParticipationMissions = sortMissionsByCompletionStatus(completedParticipationMissions)
+
     }
 
     // 참가 상태에 따라 미션 목록 정렬
@@ -182,14 +208,27 @@ class MissionFragment : Fragment() {
         val statusPriority = mapOf(
             "pending" to 0,      // 시작 전 (1순위)
             "in_progress" to 1,  // 진행 중 (2순위)
-            "completed" to 2,    // 완료 (3순위)
-            "failed" to 3,       // 포기 (4순위)
-            null to 4            // 상태가 없는 경우 (5순위)
+            null to 2            // 상태가 없는 경우 (3순위)
         )
 
         // 참가 상태에 따라 정렬
         return missions.sortedWith(compareBy { missionItem ->
             statusPriority[missionItem.participation_status] ?: 4
+        })
+    }
+
+    // 완료 상태에 따라 미션 목록 정렬 (참가 완료)
+    private fun sortMissionsByCompletionStatus(missions: List<MissionItem>): List<MissionItem> {
+        // 완료 상태별 우선순위 정의
+        val statusPriority = mapOf(
+            "completed" to 0,    // 완료 (1순위)
+            "failed" to 1,       // 포기 (2순위)
+            null to 2            // 상태가 없는 경우 (3순위)
+        )
+
+        // 완료 상태에 따라 정렬
+        return missions.sortedWith(compareBy { missionItem ->
+            statusPriority[missionItem.participation_status] ?: 2
         })
     }
 

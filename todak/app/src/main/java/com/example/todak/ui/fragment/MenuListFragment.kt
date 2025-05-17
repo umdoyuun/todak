@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
@@ -31,6 +32,9 @@ class MenuListFragment : Fragment() {
     private lateinit var menuAdapter: MenuAdapter
     private lateinit var btnScanReceipt: Button
     private lateinit var tabLayout: TabLayout
+    private lateinit var infoLayout: LinearLayout
+    private lateinit var tvEmptyMenu: TextView
+
     private val apiRepository = ApiRepository()
 
     private var shopId: String = ""
@@ -79,6 +83,8 @@ class MenuListFragment : Fragment() {
         recyclerView = view.findViewById(R.id.recycler_menus)
         btnScanReceipt = view.findViewById(R.id.btn_scan_receipt)
         tabLayout = view.findViewById(R.id.tab_layout)  // 탭 레이아웃 초기화
+        infoLayout = view.findViewById(R.id.info_layout)  // 정보 레이아웃 초기화
+        tvEmptyMenu = view.findViewById(R.id.tv_empty_menu)  // 빈 메뉴 텍스트뷰 초기화
 
         // 타이틀 설정 (필요한 경우)
         (activity as? MainActivity)?.setToolbarTitle(shopName)
@@ -161,25 +167,27 @@ class MenuListFragment : Fragment() {
                     allMenus = result.data
                     Log.d(TAG, "메뉴 목록 로드 성공: ${allMenus.size}개 항목")
 
-                    // 카테고리별로 메뉴 분류
-                    categorizeMenus(allMenus)
-
-                    // 탭 레이아웃 설정
-                    setupCategoryTabs()
-
-                    // 첫 번째 카테고리의 메뉴 표시
-                    if (categories.isNotEmpty()) {
-                        displayMenusByCategory(categories[0])
-                        // 첫 번째 탭 선택
-                        tabLayout.getTabAt(0)?.select()
-                    } else {
-                        // 카테고리가 없는 경우 전체 메뉴 표시
-                        displayMenusByCategory("전체")
-                    }
-
                     // 데이터가 없을 경우 처리
                     if (allMenus.isEmpty()) {
-                        Toast.makeText(context, "표시할 메뉴가 없습니다", Toast.LENGTH_SHORT).show()
+                        showEmptyState(true)
+                    } else {
+                        showEmptyState(false)
+
+                        // 카테고리별로 메뉴 분류
+                        categorizeMenus(allMenus)
+
+                        // 탭 레이아웃 설정
+                        setupCategoryTabs()
+
+                        // 첫 번째 카테고리의 메뉴 표시
+                        if (categories.isNotEmpty()) {
+                            displayMenusByCategory(categories[0])
+                            // 첫 번째 탭 선택
+                            tabLayout.getTabAt(0)?.select()
+                        } else {
+                            // 카테고리가 없는 경우 전체 메뉴 표시
+                            displayMenusByCategory("전체")
+                        }
                     }
                 }
 
@@ -198,6 +206,24 @@ class MenuListFragment : Fragment() {
             // showLoading(false)
         }
     }
+
+    private fun showEmptyState(isEmpty: Boolean) {
+        if (isEmpty) {
+            // 메뉴가 없는 경우 처리
+            recyclerView.visibility = View.GONE
+            btnScanReceipt.visibility = View.GONE
+            tabLayout.visibility = View.GONE
+            infoLayout.visibility = View.GONE
+            tvEmptyMenu.visibility = View.VISIBLE
+        } else {
+            // 메뉴가 있는 경우 처리
+            recyclerView.visibility = View.VISIBLE
+            btnScanReceipt.visibility = View.VISIBLE
+            infoLayout.visibility = View.VISIBLE
+            tvEmptyMenu.visibility = View.GONE
+        }
+    }
+
     private fun categorizeMenus(menus: List<MenuResponse>) {
         // 메뉴 카테고리별로 분류
         categorizedMenus.clear()

@@ -14,9 +14,13 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import android.content.Intent
 import androidx.cardview.widget.CardView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -27,6 +31,7 @@ import androidx.lifecycle.Observer
 import com.example.todak.R
 import com.example.todak.data.model.NetworkResult
 import com.example.todak.data.model.SetWeeklyBudgetRequest
+import com.example.todak.data.model.WakeupInfoResponse
 import com.example.todak.data.model.WeeklyBudgetResponse
 import com.example.todak.data.repository.BudgetRepository
 import com.example.todak.ui.activity.MainActivity
@@ -45,28 +50,91 @@ import java.text.DecimalFormat
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.Calendar
 
 class HomeFragment : Fragment() {
     private val TAG = "HomeFragment"
     private val budgetRepository by lazy { BudgetRepository() }
 
-    // 뷰 참조
+    // =========== 예산 카드 뷰 참조 ===========
+    // 카드뷰 전체
+    private lateinit var cardBudget: CardView
+
+    // 로딩/내용 레이아웃
     private lateinit var budgetLoadingLayout: View
     private lateinit var budgetContentLayout: View
+    private lateinit var budgetNoInfoLayout: View
+
+    // 콘텐츠 뷰
     private lateinit var tvBudgetDate: TextView
     private lateinit var tvUsagePercent: TextView
     private lateinit var tvStatusLabel: TextView
+    private lateinit var donutChart: BudgetDonutChartView
+    private lateinit var btnEditBudget: Button
     private lateinit var tvTargetBudget: TextView
     private lateinit var tvCurrentSpending: TextView
     private lateinit var tvDailyAvg: TextView
-    private lateinit var donutChart: BudgetDonutChartView
-    private lateinit var btnEditBudget: Button
+    private lateinit var tvRecommendedDaily: TextView
+
+    // =========== 기상 정보 카드 뷰 참조 ===========
+    //    // 카드뷰 전체
+    private lateinit var cardWakeupInfo: CardView
+
+    // 로딩/내용 레이아웃
+    private lateinit var wakeupLoadingLayout: View
+    private lateinit var wakeupNoInfoLayout: View
+    private lateinit var wakeupContentLayout: View
+
+    // 콘텐츠 뷰
+    private lateinit var tvTargetDate: TextView
+    private lateinit var tvWakeupMessage: TextView
+    private lateinit var tvWakeupSummary: TextView
+    private lateinit var tvWakeupDetail: TextView
+    private lateinit var ivExpandIndicator: ImageView
+    private var isWakeupInfoExpanded = false
+
+    // =========== 다음 일정 카드 뷰 참조 ===========
+    // 카드뷰 전체
+    private lateinit var cardNextSchedule: CardView
+    private var currentScheduleId: String? = null
+
+    // 로딩/내용 레이아웃
+    private lateinit var scheduleLoadingLayout: View
+    private lateinit var scheduleNoInfoLayout: View
+    private lateinit var scheduleContentLayout: View
+
+    // 콘텐츠 뷰
+    private lateinit var tvScheduleTitle: TextView
+    private lateinit var tvScheduleCategory: TextView
+    private lateinit var tvScheduleTime: TextView
 
     // 예산 설정 다이얼로그
     private lateinit var budgetDialog: Dialog
 
+    private var isDailySpendingExpanded = false
+    private lateinit var layoutDailySpending: LinearLayout
+
+
+    // 요일별 카드뷰 참조
+    private lateinit var cardMonday: LinearLayout
+    private lateinit var cardTuesday: LinearLayout
+    private lateinit var cardWednesday: LinearLayout
+    private lateinit var cardThursday: LinearLayout
+    private lateinit var cardFriday: LinearLayout
+    private lateinit var cardSaturday: LinearLayout
+    private lateinit var cardSunday: LinearLayout
+
+    // 요일별 금액 텍스트뷰 참조
+    private lateinit var tvMondayAmount: TextView
+    private lateinit var tvTuesdayAmount: TextView
+    private lateinit var tvWednesdayAmount: TextView
+    private lateinit var tvThursdayAmount: TextView
+    private lateinit var tvFridayAmount: TextView
+    private lateinit var tvSaturdayAmount: TextView
+    private lateinit var tvSundayAmount: TextView
+
     // 현재 실행 중인 데이터 로드 작업 추적
-    private var budgetLoadJob: Job? = null
+    private var dataLoadJob: Job? = null
 
     // 데이터 갱신 시간 추적
     private var lastDataRefreshTime = 0L
@@ -79,13 +147,14 @@ class HomeFragment : Fragment() {
     // 날짜 포맷팅을 위한 객체
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val displayDateFormat = SimpleDateFormat("M/d", Locale.getDefault())
+    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     // 예외 처리를 위한 핸들러
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         if (throwable is CancellationException) {
             Log.d(TAG, "Coroutine was cancelled normally: ${throwable.message}")
         } else {
-            Log.e(TAG, "예산 데이터 로딩 중 오류 발생", throwable)
+            Log.e(TAG, "데이터 로딩 중 오류 발생", throwable)
             activity?.runOnUiThread {
                 showErrorState("데이터 로딩 중 오류가 발생했습니다")
             }
@@ -134,16 +203,22 @@ class HomeFragment : Fragment() {
         // 세션 관리자 초기화
         SessionManager.init(requireContext())
 
+        (activity as? MainActivity)?.setToolbarTitle("")
+
         // 사용자 이름 설정
         val tvTitle = view.findViewById<TextView>(R.id.tv_title)
         val userName = SessionManager.getUserName() ?: "사용자"
         tvTitle.text = "${userName}님\n안녕하세요!"
 
-        // 뷰 참조 초기화
-        initViewReferences(view)
+        // 뷰 참조 초기화 - 카드 뷰들을 직접 찾기
+        findCardViews(view)
+
+        // 각 카드 뷰 내부 요소 초기화
+        initBudgetCardViews()
+        initWakeupInfoCardViews()
+        initNextScheduleCardViews()
 
         // 예산 수정 버튼 설정
-        btnEditBudget = view.findViewById(R.id.btn_edit_budget)
         btnEditBudget.setOnClickListener {
             showSetBudgetDialog()
         }
@@ -160,38 +235,92 @@ class HomeFragment : Fragment() {
         observeBudgetUpdateEvent()
     }
 
+    // 카드뷰들을 직접 찾는 메소드
+    private fun findCardViews(view: View) {
+        cardBudget = view.findViewById(R.id.card_budget)
+        cardWakeupInfo = view.findViewById(R.id.card_wakeup_info)
+        cardNextSchedule = view.findViewById(R.id.card_next_schedule)
+    }
+
+    // 예산 카드뷰 내부 요소 초기화
+    private fun initBudgetCardViews() {
+        // 예산 카드 뷰 내부 요소 찾기
+        budgetLoadingLayout = cardBudget.findViewById(R.id.budget_loading_layout)
+        budgetContentLayout = cardBudget.findViewById(R.id.budget_content_layout)
+        budgetNoInfoLayout = cardBudget.findViewById(R.id.budget_no_budget_layout)
+
+        tvBudgetDate = cardBudget.findViewById(R.id.tv_budget_date)
+        tvUsagePercent = cardBudget.findViewById(R.id.tv_usage_percent)
+        tvStatusLabel = cardBudget.findViewById(R.id.tv_status_label)
+        donutChart = cardBudget.findViewById(R.id.donut_chart)
+        btnEditBudget = cardBudget.findViewById(R.id.btn_edit_budget)
+
+        tvTargetBudget = cardBudget.findViewById(R.id.tv_target_budget)
+        tvCurrentSpending = cardBudget.findViewById(R.id.tv_current_spending)
+        tvDailyAvg = cardBudget.findViewById(R.id.tv_daily_avg)
+        tvRecommendedDaily = cardBudget.findViewById(R.id.tv_recommended_daily)
+
+        // 도넛 차트 초기화
+        donutChart.reset()
+
+        // 카드뷰 클릭 이벤트 설정
+        cardBudget.setOnClickListener {
+            if (budgetNoInfoLayout.isVisible) {
+                showSetBudgetDialog()
+            }
+        }
+
+        initDailySpendingViews()
+    }
+
+    // 기상 정보 카드뷰 내부 요소 초기화
+    private fun initWakeupInfoCardViews() {
+        wakeupLoadingLayout = cardWakeupInfo.findViewById(R.id.wakeup_loading_layout)
+        wakeupNoInfoLayout = cardWakeupInfo.findViewById(R.id.wakeup_no_info_layout)
+        wakeupContentLayout = cardWakeupInfo.findViewById(R.id.wakeup_content_layout)
+
+        tvTargetDate = cardWakeupInfo.findViewById(R.id.tv_target_date)
+        tvWakeupSummary = cardWakeupInfo.findViewById(R.id.tv_wakeup_summary)
+        tvWakeupDetail = cardWakeupInfo.findViewById(R.id.tv_wakeup_detail)
+        ivExpandIndicator = cardWakeupInfo.findViewById(R.id.iv_expand_indicator)
+
+        // 카드뷰 클릭 이벤트 설정
+        cardWakeupInfo.setOnClickListener {
+            if (wakeupContentLayout.isVisible) {
+                toggleWakeupInfoDetail()
+            }
+        }
+    }
+
+
+    // 다음 일정 카드뷰 내부 요소 초기화
+    private fun initNextScheduleCardViews() {
+        scheduleLoadingLayout = cardNextSchedule.findViewById(R.id.schedule_loading_layout)
+        scheduleNoInfoLayout = cardNextSchedule.findViewById(R.id.schedule_no_info_layout)
+        scheduleContentLayout = cardNextSchedule.findViewById(R.id.schedule_content_layout)
+
+        tvScheduleTitle = cardNextSchedule.findViewById(R.id.tv_schedule_title)
+        tvScheduleCategory = cardNextSchedule.findViewById(R.id.tv_schedule_category)
+        tvScheduleTime = cardNextSchedule.findViewById(R.id.tv_schedule_time)
+
+        cardNextSchedule.setOnClickListener {
+            // 내용이 표시되어 있고, 일정이 있는 경우에만 처리
+            if (scheduleContentLayout.isVisible) {
+                // currentScheduleId가 있는 경우 ScheduleFragment로 이동
+                currentScheduleId?.let { scheduleId ->
+                    navigateToScheduleDetail(scheduleId)
+                }
+            }
+        }
+    }
+
     // 예산 업데이트 이벤트 관찰 설정
     private fun observeBudgetUpdateEvent() {
         BudgetUpdateEvent.updateEvent.observe(viewLifecycleOwner, Observer { timestamp ->
             Log.d(TAG, "예산 업데이트 이벤트 수신: $timestamp")
             // 이벤트 수신 시 예산 데이터 갱신
-            refreshBudgetData()
+            refreshData()
         })
-    }
-
-    private fun initViewReferences(view: View) {
-        // 로딩 관련 뷰
-        budgetLoadingLayout = view.findViewById(R.id.budget_loading_layout)
-        budgetContentLayout = view.findViewById(R.id.budget_content_layout)
-
-        // 콘텐츠 뷰
-        tvBudgetDate = view.findViewById(R.id.tv_budget_date)
-        tvUsagePercent = view.findViewById(R.id.tv_usage_percent)
-        tvStatusLabel = view.findViewById(R.id.tv_status_label)  // XML에서 추가해야 합니다
-        val cardTargetBudget = view.findViewById<CardView>(R.id.card_target_budget)
-        cardTargetBudget.findViewById<TextView>(R.id.tv_card_title).text = "목표 예산"
-        tvTargetBudget = cardTargetBudget.findViewById(R.id.tv_card_value)
-        val cardCurrentSpending = view.findViewById<CardView>(R.id.card_current_spending)
-        cardCurrentSpending.findViewById<TextView>(R.id.tv_card_title).text = "현재 지출"
-        tvCurrentSpending = cardCurrentSpending.findViewById(R.id.tv_card_value)
-        val cardDailyAvg = view.findViewById<CardView>(R.id.card_daily_avg)
-        cardDailyAvg.findViewById<TextView>(R.id.tv_card_title).text = "일 평균"
-
-        tvDailyAvg = cardDailyAvg.findViewById(R.id.tv_card_value)
-        donutChart = view.findViewById(R.id.donut_chart)
-
-        // 중요: 도넛 차트 초기화
-        donutChart.reset()
     }
 
     private fun initBudgetDialog() {
@@ -310,7 +439,7 @@ class HomeFragment : Fragment() {
                             budgetDialog.dismiss()
 
                             // 예산 정보 새로고침
-                            refreshBudgetData()
+                            refreshData()
                         }
                         is NetworkResult.Error -> {
                             Toast.makeText(context, "예산 설정 실패: ${result.message}", Toast.LENGTH_SHORT).show()
@@ -333,17 +462,26 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun toggleWakeupInfoDetail() {
+        isWakeupInfoExpanded = !isWakeupInfoExpanded
+
+        // 상세 정보 표시/숨김
+        tvWakeupDetail.isVisible = isWakeupInfoExpanded
+
+        val rotation = if (isWakeupInfoExpanded) 180f else 0f
+        ivExpandIndicator.rotation = rotation
+    }
 
     private fun setupDataLoadingCoroutine() {
         // 기존 작업 취소
-        budgetLoadJob?.cancel()
+        dataLoadJob?.cancel()
 
         // 새로운 코루틴 시작 - viewLifecycleOwner의 생명주기에 따라 관리
-        budgetLoadJob = lifecycleScope.launch(exceptionHandler) {
+        dataLoadJob = lifecycleScope.launch(exceptionHandler) {
             // 중요: repeatOnLifecycle을 사용하여 STARTED 상태일 때만 코루틴 실행
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // 데이터 로드
-                fetchBudgetData()
+                fetchData()
             }
         }
     }
@@ -354,61 +492,63 @@ class HomeFragment : Fragment() {
         // 마지막 갱신 이후 충분한 시간이 지났으면 데이터 새로고침
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastDataRefreshTime > DATA_REFRESH_INTERVAL) {
-            // 새로운 데이터 로드 트리거 - 일반 함수에서는 suspend 함수를 직접 호출할 수 없으므로
-            // 새 코루틴을 시작하여 호출
-            refreshBudgetData()
+            // 새로운 데이터 로드 트리거
+            refreshData()
         }
     }
 
     // 일반 함수에서 호출할 수 있는 데이터 갱신 함수
-    fun refreshBudgetData() {
+    fun refreshData() {
         lifecycleScope.launch(exceptionHandler) {
-            fetchBudgetData()
+            fetchData()
         }
     }
 
     // 실제 데이터를 가져오는 suspend 함수
-    private suspend fun fetchBudgetData() {
+    private suspend fun fetchData() {
         try {
             // 로딩 상태 표시
             withContext(Dispatchers.Main) {
                 showLoadingState()
             }
 
-            // IO 스레드에서 네트워크 작업 수행
+            // IO 스레드에서 새로운 기상 정보 API 호출
             val result = withContext(Dispatchers.IO) {
-                budgetRepository.getWeeklyBudget()
+                budgetRepository.getWakeupInfo()
             }
 
             // 메인 스레드에서 UI 업데이트
             withContext(Dispatchers.Main) {
-                handleBudgetResult(result)
+                handleWakeupInfoResult(result)
                 lastDataRefreshTime = System.currentTimeMillis()
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
 
-            Log.e(TAG, "예산 정보 로딩 중 예외 발생", e)
+            Log.e(TAG, "데이터 로딩 중 예외 발생", e)
             withContext(Dispatchers.Main) {
                 showErrorState("오류 발생: ${e.message}")
             }
         }
     }
 
-    private fun handleBudgetResult(result: NetworkResult<WeeklyBudgetResponse>) {
+    private fun handleWakeupInfoResult(result: NetworkResult<WakeupInfoResponse>) {
         when (result) {
             is NetworkResult.Success -> {
-                val budgetData = result.data
+                val wakeupInfoData = result.data
+                Log.d(TAG, "$wakeupInfoData")
 
-                if (budgetData.has_budget) {
-                    updateBudgetUI(budgetData)
-                    showContentState()
-                } else {
-                    showNoBudgetState()
-                }
+                // 예산 상태 업데이트
+                updateBudgetUI(wakeupInfoData.budget_status, wakeupInfoData.daily_spending)
+
+                // 기상 정보 업데이트
+                updateWakeupInfoUI(wakeupInfoData)
+
+                // 다음 일정 업데이트
+                updateScheduleUI(wakeupInfoData)
             }
             is NetworkResult.Error -> {
-                Log.e(TAG, "예산 정보 로딩 실패: ${result.message}")
+                Log.e(TAG, "데이터 로딩 실패: ${result.message}")
                 showErrorState("데이터를 불러오는데 실패했습니다")
             }
             is NetworkResult.Loading -> {
@@ -417,23 +557,104 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun showNoBudgetState() {
-        budgetLoadingLayout.isVisible = false
-        budgetContentLayout.isVisible = false
 
-        // Show the no budget layout
-        val noBudgetLayout = view?.findViewById<View>(R.id.budget_no_budget_layout)
-        noBudgetLayout?.isVisible = true
+    private fun updateWakeupInfoUI(wakeupInfoData: WakeupInfoResponse) {
+        try {
+            if (!wakeupInfoData.has_info) {
+                // 기상 정보가 없는 경우
+                wakeupLoadingLayout.isVisible = false
+                wakeupNoInfoLayout.isVisible = true
+                wakeupContentLayout.isVisible = false
+                return
+            }
 
-        // Make the entire card clickable to show budget dialog
-        val cardBudget = view?.findViewById<CardView>(R.id.card_budget)
-        cardBudget?.setOnClickListener {
-            showSetBudgetDialog()
+            // 기상 정보 표시
+            tvTargetDate.text = wakeupInfoData.target_date
+
+            // 메시지를 처리하여 요약과 상세 부분으로 나눕니다
+            val fullMessage = wakeupInfoData.message
+            val recommendedTime = wakeupInfoData.recommended_time
+
+            // 추천 시간 메시지 생성
+            val summaryMessage = "내일 추천 기상 시간은 ${recommendedTime}입니다."
+
+            // 전체 메시지에서 요약 메시지 부분을 제거
+            var detailMessage = fullMessage
+            if (fullMessage.contains(summaryMessage)) {
+                detailMessage = fullMessage.replace(summaryMessage, "").trim()
+            }
+
+            // 상세 메시지가 비어있으면 공백으로 만들기
+            if (detailMessage.isBlank()) {
+                detailMessage = ""
+            }
+
+            // TextView에 설정
+            tvWakeupSummary.text = summaryMessage
+            tvWakeupDetail.text = detailMessage
+            tvWakeupDetail.isVisible = isWakeupInfoExpanded && detailMessage.isNotEmpty()
+
+            // 초기 상태는 접힌 상태
+            tvWakeupDetail.isVisible = isWakeupInfoExpanded
+
+            // 기상 정보 영역 표시
+            wakeupLoadingLayout.isVisible = false
+            wakeupNoInfoLayout.isVisible = false
+            wakeupContentLayout.isVisible = true
+        } catch (e: Exception) {
+            Log.e(TAG, "기상 정보 업데이트 중 오류 발생", e)
+            wakeupLoadingLayout.isVisible = false
+            wakeupNoInfoLayout.isVisible = true
+            wakeupContentLayout.isVisible = false
         }
     }
 
-    private fun updateBudgetUI(budgetData: WeeklyBudgetResponse) {
+    private fun updateScheduleUI(wakeupInfoData: WakeupInfoResponse) {
         try {
+            if (!wakeupInfoData.has_schedule || wakeupInfoData.next_schedule == null) {
+                // 일정 정보가 없는 경우
+                scheduleLoadingLayout.isVisible = false
+                scheduleNoInfoLayout.isVisible = true
+                scheduleContentLayout.isVisible = false
+                return
+            }
+
+            // 다음 일정 정보 표시
+            val nextSchedule = wakeupInfoData.next_schedule
+            tvScheduleTitle.text = nextSchedule.title
+            tvScheduleCategory.text = nextSchedule.category
+            tvScheduleTime.text = nextSchedule.start_time
+
+            currentScheduleId = nextSchedule.schedule_id
+
+            // 일정 정보 영역 표시
+            scheduleLoadingLayout.isVisible = false
+            scheduleNoInfoLayout.isVisible = false
+            scheduleContentLayout.isVisible = true
+        } catch (e: Exception) {
+            Log.e(TAG, "일정 정보 업데이트 중 오류 발생", e)
+            scheduleLoadingLayout.isVisible = false
+            scheduleNoInfoLayout.isVisible = true
+            scheduleContentLayout.isVisible = false
+            currentScheduleId = null
+        }
+    }
+
+    private fun navigateToScheduleDetail(scheduleId: String) {
+        // MainActivity 인스턴스 가져오기
+        val mainActivity = activity as? MainActivity
+        if (mainActivity != null) {
+            mainActivity.navigateToScheduleWithId(scheduleId)
+        }
+    }
+
+    private fun updateBudgetUI(budgetData: WeeklyBudgetResponse, dailySpending: Map<String, Int>) {
+        try {
+            if (!budgetData.has_budget) {
+                showNoBudgetState()
+                return
+            }
+
             // 날짜 표시
             val startDate = dateFormat.parse(budgetData.start_date)
             val endDate = dateFormat.parse(budgetData.end_date)
@@ -453,7 +674,13 @@ class HomeFragment : Fragment() {
 
             // 사용률에 따라 텍스트 색상 변경
             context?.let { ctx ->
-                val colorRes = if (budgetData.usage_percent > 100) R.color.red else R.color.mintgreen
+                val colorRes = when (budgetData.status) {
+                    "절약 중" -> R.color.mintgreen
+                    "계획대로" -> R.color.darkgreen
+                    "조금 빠르게 사용 중" -> R.color.orange
+                    "예산 초과" -> R.color.red
+                    else -> R.color.mintgreen  // 기본값
+                }
                 tvUsagePercent.setTextColor(ctx.getColor(colorRes))
                 tvStatusLabel.setTextColor(ctx.getColor(colorRes))
 
@@ -465,9 +692,18 @@ class HomeFragment : Fragment() {
             }
 
             // 금액 정보 업데이트
-            tvTargetBudget.text = "${decimalFormat.format(budgetData.total_budget)}원"
-            tvCurrentSpending.text = "₩${decimalFormat.format(budgetData.current_spending)}원"
-            tvDailyAvg.text = "₩${decimalFormat.format(budgetData.daily_avg_spent)}원"
+            tvTargetBudget.text = "₩${decimalFormat.format(budgetData.total_budget)}"
+            tvCurrentSpending.text = "₩${decimalFormat.format(budgetData.current_spending)}"
+            tvDailyAvg.text = "₩${decimalFormat.format(budgetData.daily_avg_spent)}"
+            tvRecommendedDaily.text = "₩${decimalFormat.format(budgetData.recommended_daily_budget)}"
+
+            // 요일별 지출 정보 업데이트
+            updateDailySpendingUI(dailySpending, budgetData.total_budget)
+
+            // 예산 카드 표시
+            budgetLoadingLayout.isVisible = false
+            budgetNoInfoLayout.isVisible = false
+            budgetContentLayout.isVisible = true
 
         } catch (e: Exception) {
             Log.e(TAG, "데이터 파싱 중 오류 발생", e)
@@ -475,46 +711,169 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun updateDailySpendingUI(dailySpending: Map<String, Int>, targetBudget: Int) {
+        context?.let { ctx ->
+            // 현재 요일 구하기 (1=일요일, 7=토요일을 한국 요일 체계로 변환)
+            val calendar = Calendar.getInstance()
+            val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+
+            // Calendar.DAY_OF_WEEK는 일요일=1, 토요일=7이므로 한국식(월=1, 일=7)으로 변환
+            val koreanDayOfWeek = when(currentDayOfWeek) {
+                Calendar.SUNDAY -> 7    // 일요일
+                else -> currentDayOfWeek - 1  // 월~토
+            }
+
+            val targetDailyBudget = targetBudget / 7
+
+            // 요일별 금액 설정 및 스타일 적용
+            updateDayUI(tvMondayAmount, cardMonday, dailySpending.getOrDefault("월요일", 0), targetDailyBudget, 1 <= koreanDayOfWeek)
+            updateDayUI(tvTuesdayAmount, cardTuesday, dailySpending.getOrDefault("화요일", 0), targetDailyBudget, 2 <= koreanDayOfWeek)
+            updateDayUI(tvWednesdayAmount, cardWednesday, dailySpending.getOrDefault("수요일", 0), targetDailyBudget, 3 <= koreanDayOfWeek)
+            updateDayUI(tvThursdayAmount, cardThursday, dailySpending.getOrDefault("목요일", 0), targetDailyBudget, 4 <= koreanDayOfWeek)
+            updateDayUI(tvFridayAmount, cardFriday, dailySpending.getOrDefault("금요일", 0), targetDailyBudget, 5 <= koreanDayOfWeek)
+            updateDayUI(tvSaturdayAmount, cardSaturday, dailySpending.getOrDefault("토요일", 0), targetDailyBudget, 6 <= koreanDayOfWeek)
+            updateDayUI(tvSundayAmount, cardSunday, dailySpending.getOrDefault("일요일", 0), targetDailyBudget, 7 <= koreanDayOfWeek)
+        }
+    }
+
+    private fun updateDayUI(textView: TextView, cardView: LinearLayout, amount: Int, dailyBudget: Int, isPast: Boolean) {
+        // 금액 설정
+        textView.text = "₩${decimalFormat.format(amount)}"
+
+        context?.let { ctx ->
+            if (isPast) {
+                // 지출이 기준 예산의 ±10% 내에 있는지 확인
+                val lowerThreshold = dailyBudget * 0.9  // 기준에서 10% 아래
+                val upperThreshold = dailyBudget * 1.1  // 기준에서 10% 위
+
+                // 색상 결정 (범위 내=오렌지, 초과=빨강, 미만=초록)
+                val colorRes = when {
+                    amount > upperThreshold -> R.color.red        // 10% 초과 = 빨강
+                    amount < lowerThreshold -> R.color.green      // 10% 미만 = 초록
+                    else -> R.color.orange                        // 10% 내외 = 오렌지
+                }
+
+                val color = ctx.getColor(colorRes)
+
+                // 금액 텍스트뷰 색상 변경
+                textView.setTextColor(color)
+
+                // 요일 텍스트뷰 찾아서 같은 색상으로 변경
+                if (cardView.childCount > 0) {
+                    val dayTextView = cardView.getChildAt(0) as? TextView
+                    dayTextView?.setTextColor(color)
+                }
+
+                // 카드 배경을 활성화 상태로
+                cardView.alpha = 1.0f
+            } else {
+                // 미래 날짜는 비활성화 상태로
+                val grayColor = ctx.getColor(R.color.darkgray)
+                textView.setTextColor(grayColor)
+
+                // 요일 텍스트뷰도 회색으로 설정
+                if (cardView.childCount > 0) {
+                    val dayTextView = cardView.getChildAt(0) as? TextView
+                    dayTextView?.setTextColor(grayColor)
+                }
+
+                cardView.alpha = 0.5f
+            }
+        }
+    }
+
+    private fun initDailySpendingViews() {
+        // 레이아웃 참조 가져오기
+        layoutDailySpending = cardBudget.findViewById(R.id.layout_daily_spending)
+
+        // 요일별 카드뷰 참조
+        cardMonday = cardBudget.findViewById(R.id.card_monday)
+        cardTuesday = cardBudget.findViewById(R.id.card_tuesday)
+        cardWednesday = cardBudget.findViewById(R.id.card_wednesday)
+        cardThursday = cardBudget.findViewById(R.id.card_thursday)
+        cardFriday = cardBudget.findViewById(R.id.card_friday)
+        cardSaturday = cardBudget.findViewById(R.id.card_saturday)
+        cardSunday = cardBudget.findViewById(R.id.card_sunday)
+
+        // 요일별 금액 텍스트뷰 참조
+        tvMondayAmount = cardBudget.findViewById(R.id.tv_monday_amount)
+        tvTuesdayAmount = cardBudget.findViewById(R.id.tv_tuesday_amount)
+        tvWednesdayAmount = cardBudget.findViewById(R.id.tv_wednesday_amount)
+        tvThursdayAmount = cardBudget.findViewById(R.id.tv_thursday_amount)
+        tvFridayAmount = cardBudget.findViewById(R.id.tv_friday_amount)
+        tvSaturdayAmount = cardBudget.findViewById(R.id.tv_saturday_amount)
+        tvSundayAmount = cardBudget.findViewById(R.id.tv_sunday_amount)
+
+        // 카드뷰 클릭 이벤트 수정
+        cardBudget.setOnClickListener {
+            if (budgetNoInfoLayout.isVisible) {
+                showSetBudgetDialog()
+            } else if (budgetContentLayout.isVisible) {
+                // 이미 펼쳐져 있으면 접기, 아니면 펼치기
+                toggleDailySpending(!isDailySpendingExpanded)
+            }
+        }
+    }
+
+    private fun toggleDailySpending(expand: Boolean) {
+        isDailySpendingExpanded = expand
+
+        // 요일별 지출 내역 레이아웃 표시/숨김
+        layoutDailySpending.isVisible = isDailySpendingExpanded
+
+    }
+
+
+    private fun showNoBudgetState() {
+        budgetLoadingLayout.isVisible = false
+        budgetContentLayout.isVisible = false
+        budgetNoInfoLayout.isVisible = true
+    }
+
     // 로딩 상태 표시
     private fun showLoadingState() {
+        // 예산 카드 로딩 표시
         budgetLoadingLayout.isVisible = true
         budgetContentLayout.isVisible = false
-    }
+        budgetNoInfoLayout.isVisible = false
 
-    // 콘텐츠 상태 표시
-    private fun showContentState() {
-        budgetLoadingLayout.isVisible = false
-        budgetContentLayout.isVisible = true
-    }
+        // 기상 정보 카드 로딩 표시
+        wakeupLoadingLayout.isVisible = true
+        wakeupContentLayout.isVisible = false
+        wakeupNoInfoLayout.isVisible = false
 
-    // 비어있는 상태 표시
-    private fun showEmptyState(message: String) {
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        budgetLoadingLayout.isVisible = false
-        budgetContentLayout.isVisible = false
+        // 일정 정보 카드 로딩 표시
+        scheduleLoadingLayout.isVisible = true
+        scheduleContentLayout.isVisible = false
+        scheduleNoInfoLayout.isVisible = false
     }
 
     // 오류 상태 표시
     private fun showErrorState(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
-        // 오류 상태에서는 로딩 레이아웃을 숨기고, 콘텐츠 레이아웃에 기본값 표시
+        // 예산 카드 오류 표시
         budgetLoadingLayout.isVisible = false
-        budgetContentLayout.isVisible = true
+        budgetContentLayout.isVisible = false
+        budgetNoInfoLayout.isVisible = true
 
-        // 기본값으로 리셋
-        tvBudgetDate.text = ""
-        tvUsagePercent.text = "0%"
-        tvStatusLabel.text = "-"
-        tvTargetBudget.text = "₩0"
-        tvCurrentSpending.text = "₩0"
-        tvDailyAvg.text = "₩0"
+        // 기상 정보 카드 오류 표시
+        wakeupLoadingLayout.isVisible = false
+        wakeupContentLayout.isVisible = false
+        wakeupNoInfoLayout.isVisible = true
+
+        // 일정 정보 카드 오류 표시
+        scheduleLoadingLayout.isVisible = false
+        scheduleContentLayout.isVisible = false
+        scheduleNoInfoLayout.isVisible = true
+
+        // 도넛 차트 리셋
         donutChart.reset()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        budgetLoadJob?.cancel()
+        dataLoadJob?.cancel()
         if (::budgetDialog.isInitialized && budgetDialog.isShowing) {
             budgetDialog.dismiss()
         }

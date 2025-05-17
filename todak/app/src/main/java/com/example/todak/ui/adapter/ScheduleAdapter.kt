@@ -2,6 +2,8 @@ package com.example.todak.ui.adapter
 
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,7 +35,12 @@ class ScheduleAdapter : ListAdapter<ScheduleItem, ScheduleAdapter.ScheduleViewHo
 
     override fun onBindViewHolder(holder: ScheduleViewHolder, position: Int) {
         val scheduleItem = getItem(position)
-        holder.bind(scheduleItem)
+
+        // 현재 항목이 마지막 항목인지 확인
+        val isLastItem = position == itemCount - 1
+
+        // 마지막 항목이면 연결선 숨기기
+        holder.bind(scheduleItem, isLastItem)
     }
 
     inner class ScheduleViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -43,7 +50,17 @@ class ScheduleAdapter : ListAdapter<ScheduleItem, ScheduleAdapter.ScheduleViewHo
         private val tvStatus = itemView.findViewById<TextView>(R.id.tv_status)
         private val viewTimeline = itemView.findViewById<View>(R.id.view_timeline)
 
-        fun bind(item: ScheduleItem) {
+        fun resetView() {
+            // 모든 뷰 상태 초기화
+            viewTimeline.visibility = View.GONE
+        }
+
+        init {
+            // 초기에 타임라인 숨기기
+            viewTimeline.visibility = View.GONE
+        }
+
+        fun bind(item: ScheduleItem, isLastItem: Boolean) {
             tvTitle.text = item.title
             tvCategory.text = item.category
 
@@ -128,10 +145,26 @@ class ScheduleAdapter : ListAdapter<ScheduleItem, ScheduleAdapter.ScheduleViewHo
             }
             tvCategory.background = tagBackground
 
-            // 타임라인 표시 여부
-            viewTimeline.visibility = if (item.showTimeline) View.VISIBLE else View.GONE
+            // 명시적으로 타임라인 가시성 설정
+            viewTimeline.visibility = if (isLastItem) View.GONE else View.VISIBLE
         }
     }
+
+    override fun submitList(list: List<ScheduleItem>?) {
+        // 기존 목록과 완전히 다른 새 목록으로 교체하기 위해 null을 먼저 제출
+        super.submitList(null)
+
+        // 약간의 딜레이 후 새 목록 제출
+        Handler(Looper.getMainLooper()).post {
+            super.submitList(list)
+        }
+    }
+
+    override fun onViewRecycled(holder: ScheduleViewHolder) {
+        super.onViewRecycled(holder)
+        holder.resetView()
+    }
+
 
     private class ScheduleDiffCallback : DiffUtil.ItemCallback<ScheduleItem>() {
         override fun areItemsTheSame(oldItem: ScheduleItem, newItem: ScheduleItem): Boolean {

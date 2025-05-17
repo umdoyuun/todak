@@ -27,7 +27,7 @@
         android:maxLines="1"
         android:text="예쁜 카페"
         android:textColor="@android:color/black"
-        android:textSize="20sp"
+        android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintStart_toEndOf="@+id/img_shop"
         app:layout_constraintTop_toTopOf="@+id/img_shop"

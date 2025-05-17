@@ -4,6 +4,7 @@ import android.icu.text.SimpleDateFormat
 import android.icu.util.Calendar
 import android.util.Log
 import com.example.todak.data.model.AudioResponse
+import com.example.todak.data.model.Center
 import com.example.todak.data.model.ChatRequest
 import com.example.todak.data.model.ChatResponse
 import com.example.todak.data.model.LoginRequest
@@ -18,6 +19,7 @@ import com.example.todak.data.model.ScheduleItem
 import com.example.todak.data.model.ScheduleResponse
 import com.example.todak.data.model.SignupRequest
 import com.example.todak.data.model.StoreItem
+import com.example.todak.data.model.UserProfile
 import com.example.todak.util.SessionManager
 import com.google.gson.Gson
 import okhttp3.MediaType
@@ -162,7 +164,10 @@ class ApiRepository {
                 if (it.isNotEmpty()) requestMap["gender"] = it
             }
             request.phone?.let {
-                if (it.isNotEmpty()) requestMap["phone"] = it
+                if (it.isNotEmpty()) {
+                    val formattedPhone = "${it.substring(0, 3)}-${it.substring(3, 7)}-${it.substring(7, 11)}"
+                    requestMap["phone"] = formattedPhone
+                }
             }
             request.address?.let {
                 if (it.isNotEmpty()) requestMap["address"] = it
@@ -455,6 +460,78 @@ class ApiRepository {
             }
         } catch (e: Exception) {
             Log.e(TAG, "OCR 처리 오류", e)
+            NetworkResult.Error("오류 발생: ${e.message}")
+        }
+    }
+
+    suspend fun getUserProfile(userId: String): NetworkResult<UserProfile> {
+        return try {
+            val accessToken = SessionManager.getAuthToken()
+
+            if (accessToken.isNullOrEmpty()) {
+                Log.e(TAG, "토큰이 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("토큰이 없습니다. 로그인이 필요합니다.")
+            }
+
+            val response = apiService.getUserProfile(
+                authorization = "Bearer $accessToken",
+                userId = userId
+            )
+
+            if (response.isSuccessful) {
+                response.body()?.let { profile ->
+                    Log.d(TAG, "사용자 프로필 가져오기 성공: ${profile.name}")
+                    NetworkResult.Success(profile)
+                } ?: run {
+                    Log.e(TAG, "응답 본문이 비어 있습니다")
+                    NetworkResult.Error("응답 본문이 비어 있습니다")
+                }
+            } else {
+                val errorMsg = "API 호출 실패: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMsg)
+                NetworkResult.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "사용자 프로필 가져오기 오류", e)
+            NetworkResult.Error("오류 발생: ${e.message}")
+        }
+    }
+
+    suspend fun getUserCenters(): NetworkResult<List<Center>> {
+        return try {
+            val accessToken = SessionManager.getAuthToken()
+            val userId = SessionManager.getUserId()
+
+            if (accessToken.isNullOrEmpty()) {
+                Log.e(TAG, "토큰이 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("토큰이 없습니다. 로그인이 필요합니다.")
+            }
+
+            if (userId.isNullOrEmpty()) {
+                Log.e(TAG, "사용자 ID가 없습니다. 로그인이 필요합니다.")
+                return NetworkResult.Error("사용자 ID가 없습니다. 로그인이 필요합니다.")
+            }
+
+            val response = apiService.getUserCenters(
+                authorization = "Bearer $accessToken",
+                userId = userId
+            )
+
+            if (response.isSuccessful) {
+                response.body()?.let { centers ->
+                    Log.d(TAG, "센터 목록 가져오기 성공: ${centers.size}개 항목")
+                    NetworkResult.Success(centers)
+                } ?: run {
+                    Log.e(TAG, "응답 본문이 비어 있습니다")
+                    NetworkResult.Error("응답 본문이 비어 있습니다")
+                }
+            } else {
+                val errorMsg = "API 호출 실패: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMsg)
+                NetworkResult.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "센터 목록 가져오기 오류", e)
             NetworkResult.Error("오류 발생: ${e.message}")
         }
     }

@@ -242,6 +242,11 @@ class SignupActivity : AppCompatActivity() {
             } else {
                 etPhone.error = null
             }
+            if (phone.length != 11) {
+                etPhone.error = "유효한 전화번호 형식이 아닙니다"
+                etPhone.requestFocus()
+                isValid = false
+            }
         } else {
             etPhone.error = null  // 비어 있어도 오류 없음
         }

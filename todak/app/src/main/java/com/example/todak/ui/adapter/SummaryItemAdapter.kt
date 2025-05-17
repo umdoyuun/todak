@@ -7,22 +7,31 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.todak.R
 
-class SummaryItemAdapter(private val items: List<String>) :
+class SummaryItemAdapter(private var items: List<String>) :
     RecyclerView.Adapter<SummaryItemAdapter.ViewHolder>() {
-
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val textView: TextView = view.findViewById(R.id.tv_item_text)
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_summary, parent, false)
+            .inflate(R.layout.item_achievement, parent, false)
         return ViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.textView.text = items[position]
+        holder.bind(items[position])
     }
 
-    override fun getItemCount() = items.size
+    override fun getItemCount(): Int = items.size
+
+    fun updateItems(newItems: List<String>) {
+        items = newItems
+        notifyDataSetChanged()
+    }
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvItem: TextView = itemView.findViewById(R.id.tv_achievement)
+
+        fun bind(text: String) {
+            tvItem.text = text
+        }
+    }
 }

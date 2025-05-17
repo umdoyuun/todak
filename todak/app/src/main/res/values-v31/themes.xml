@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ 스플래시 화면 테마 -->
+    <style name="Theme.Todak.Splash" parent="Theme.SplashScreen">
+        <!-- 스플래시 화면 배경색 -->
+        <item name="windowSplashScreenBackground">@color/darkgreen</item>
+
+        <!-- 스플래시 화면 아이콘 - 커스텀 이미지 사용 -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/transparent</item>
+
+        <!-- 브랜딩 이미지는 제거 (오류 발생) -->
+        <!-- <item name="windowSplashScreenBrandingImage">@drawable/todak</item> -->
+
+        <!-- 스플래시 후 전환될 테마 -->
+        <item name="postSplashScreenTheme">@style/Theme.Todak</item>
+    </style>
+</resources>

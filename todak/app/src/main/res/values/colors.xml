@@ -13,4 +13,8 @@
     <color name="lightgray">#E0E0E0</color>
     <color name="darkgray">#A9A9A9</color>
     <color name="red">#DB321E</color>
+    <color name="blue">#2196F3</color>
+    <color name="orange">#FF9800</color>
+    <color name="purple">#9C27B0</color>
+    <color name="yellow">#FFC107</color>
 </resources>

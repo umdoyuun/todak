@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="12dp">
+    android:paddingVertical="8dp">
 
     <!-- 번호가 있는 원형 배경 -->
     <TextView
@@ -33,6 +33,23 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:text="루틴 1단계 제목" />
 
+    <!-- 완료 상태 표시 -->
+    <TextView
+        android:id="@+id/tv_completion_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_rounded_background"
+        android:gravity="center"
+        android:text="완료했습니다"
+        android:layout_marginEnd="16dp"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="2dp"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_step_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tv_step_title" />
+
     <!-- 설명 -->
     <TextView
         android:id="@+id/tv_step_description"
@@ -49,13 +66,12 @@
     <!-- 메모 필드 -->
     <TextView
         android:id="@+id/tv_step_notes"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:textColor="@color/brown"
         android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/tv_step_description"
         app:layout_constraintTop_toBottomOf="@id/tv_step_description"
         tools:text="메모: 완료했습니다"
@@ -92,44 +108,42 @@
             android:gravity="center"
             android:orientation="horizontal"
             android:visibility="gone"
-            tools:visibility="visible">
+            >
 
             <!-- 완료 버튼 -->
             <Button
                 android:id="@+id/btn_complete_step"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="28dp"
                 android:layout_marginEnd="4dp"
                 android:layout_weight="1"
                 android:backgroundTint="@color/green"
                 android:text="완료"
                 android:textColor="@android:color/white"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:minHeight="32dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:textSize="14sp" />
 
             <!-- 건너뛰기 버튼 -->
             <Button
                 android:id="@+id/btn_skip_step"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="28dp"
                 android:layout_marginStart="4dp"
                 android:layout_weight="1"
                 android:backgroundTint="@color/gray"
                 android:text="건너뛰기"
                 android:textColor="@android:color/white"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:minHeight="32dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
         </LinearLayout>
-
-        <!-- 완료 상태 표시 -->
-        <TextView
-            android:id="@+id/tv_completion_status"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="@drawable/button_rounded_background"
-            android:gravity="center"
-            android:text="완료했습니다."
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:visibility="gone" />
     </FrameLayout>
 
     <!-- 구분선 -->
@@ -137,7 +151,7 @@
         android:id="@+id/divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:background="#E0E0E0"
         app:layout_constraintTop_toBottomOf="@id/action_container"
         app:layout_constraintBottom_toBottomOf="parent" />

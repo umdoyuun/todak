@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity(), WakeWordService.VoiceResponseListener 
         }
         findViewById<View>(R.id.nav_routine).setOnClickListener {
             updateNavSelection(it)
-            replaceFragment(RoutineFragment(), "루틴")
+            replaceFragment(RoutineFragment(), "생활습관")
         }
 
         val settingIcon = findViewById<ImageView>(R.id.setting_icon)
@@ -532,8 +532,16 @@ class MainActivity : AppCompatActivity(), WakeWordService.VoiceResponseListener 
     private val backPressedTimeInterval: Long = 2000 // 2초 이내에 두 번 클릭해야 함
 
     @Deprecated("Deprecated in Java")
-    // 기존 onBackPressed 함수 유지, 아이콘 업데이트 추가
     override fun onBackPressed() {
+        // 현재 표시된 프래그먼트 확인
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.frame_container)
+
+        // 현재 프래그먼트가 ScheduleFragment이고 목록 모드인 경우
+        if (currentFragment is ScheduleFragment && currentFragment.handleBackPressed()) {
+            // ScheduleFragment에서 처리됨, 여기서는 더 이상 처리하지 않음
+            return
+        }
+
         // 백스택에 프래그먼트가 있는지 확인
         if (supportFragmentManager.backStackEntryCount > 0) {
             // 백스택이 있으면 일반적인 뒤로가기 작동 (프래그먼트 pop)
@@ -541,10 +549,7 @@ class MainActivity : AppCompatActivity(), WakeWordService.VoiceResponseListener 
             // 뒤로가기 후 아이콘 상태 업데이트
             updateBackIconVisibility()
         } else {
-            // 현재 표시된 프래그먼트 확인
-            val currentFragment = supportFragmentManager.findFragmentById(R.id.frame_container)
-
-            // 현재 프래그먼트가 HomeFragment가 아닐 경우에만 홈으로 이동
+            // 현재 표시된 프래그먼트 확인 (위에서 이미 확인했지만 로직 유지)
             if (currentFragment != null && currentFragment !is HomeFragment) {
                 clearNavSelection()
                 replaceFragment(HomeFragment(), "")
@@ -956,6 +961,14 @@ class MainActivity : AppCompatActivity(), WakeWordService.VoiceResponseListener 
         }
     }
 
+    fun navigateToScheduleWithId(scheduleId: String, action: String? = null) {
+        // 네비게이션 선택 상태 업데이트
+        updateNavSelection(findViewById(R.id.nav_schedule))
+
+        // 이미 있는 private 메서드 호출
+        showScheduleFragment(scheduleId, action)
+    }
+
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onResume() {
         super.onResume()
@@ -1012,4 +1025,5 @@ class MainActivity : AppCompatActivity(), WakeWordService.VoiceResponseListener 
         private const val REQUEST_WAKEWORD_PERMISSIONS = 101
         private const val REQUEST_SMS_PERMISSIONS = 102
     }
+
 }

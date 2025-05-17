@@ -53,24 +53,3 @@ data class RoutineStartRequest(
 data class RoutineActionResponse(
     val message: String
 )
-
-// 루틴 생성/수정 요청 모델
-data class RoutineCreateUpdateRequest(
-    val title: String,
-    val description: String,
-    val steps: List<RoutineStepRequest>,
-    val is_active: Boolean? = null // 수정 시에만 사용, 생성 시에는 null
-)
-
-data class RoutineStepRequest(
-    val step_index: Int,
-    val title: String,
-    val description: String,
-    val duration_minutes: Int
-)
-
-// 응답 모델
-data class RoutineCreateResponse(
-    val message: String,
-    val id: String
-)

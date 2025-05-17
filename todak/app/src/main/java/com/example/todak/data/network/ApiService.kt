@@ -1,6 +1,7 @@
 package com.example.todak.data.network
 
 import com.example.todak.data.model.AudioResponse
+import com.example.todak.data.model.Center
 import com.example.todak.data.model.CenterReportDetailResponse
 import com.example.todak.data.model.CenterReportsResponse
 import com.example.todak.data.model.ChatRequest
@@ -24,8 +25,6 @@ import com.example.todak.data.model.MissionStartRequest
 import com.example.todak.data.model.MissionsResponse
 import com.example.todak.data.model.OcrResponse
 import com.example.todak.data.model.RoutineActionResponse
-import com.example.todak.data.model.RoutineCreateResponse
-import com.example.todak.data.model.RoutineCreateUpdateRequest
 import com.example.todak.data.model.RoutineResponse
 import com.example.todak.data.model.RoutineStartRequest
 import com.example.todak.data.model.RoutineStepActionRequest
@@ -41,6 +40,8 @@ import com.example.todak.data.model.SpendingItem
 import com.example.todak.data.model.SpendingResponse
 import com.example.todak.data.model.StoreListResponse
 import com.example.todak.data.model.TokenResponse
+import com.example.todak.data.model.WakeupInfoResponse
+import com.example.todak.data.model.UserProfile
 import com.example.todak.data.model.WeeklyBudgetResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -81,6 +82,18 @@ interface ApiService {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
+    @GET("profile/getUserProfile/{userId}")
+    suspend fun getUserProfile(
+        @Header("Authorization") authorization: String,
+        @Path("userId") userId: String
+    ): Response<UserProfile>
+
+    @GET("relation/biuser/getCenters")
+    suspend fun getUserCenters(
+        @Header("Authorization") authorization: String,
+        @Header("X-User-ID") userId: String
+    ): Response<List<Center>>
+
     @GET("profile/getRelationToken/")
     suspend fun getRelationToken(
         @Header("Authorization") token: String,
@@ -118,7 +131,14 @@ interface ApiService {
     ): Response<OcrResponse>
 
     @GET("/api/schedule/today")
-    suspend fun getTodaySchedules(
+    suspend fun getTodayScheduleList(
+        @Header("X-User-ID") userId: String,
+        @Header("Authorization") authorization: String,
+        @Query("target_date") targetDate: String? = null
+    ): Response<ScheduleListResponse>
+
+    @GET("/api/schedule/self/list")
+    suspend fun getAllSchedules(
         @Header("X-User-ID") userId: String,
         @Header("Authorization") authorization: String
     ): Response<ScheduleListResponse>
@@ -266,21 +286,6 @@ interface ApiService {
         @Body request: RoutineStartRequest
     ): Response<RoutineActionResponse>
 
-    @POST("api/morning-routines/me")
-    suspend fun createRoutine(
-        @Header("X-User-ID") userId: String,
-        @Header("Authorization") authorization: String,
-        @Body request: RoutineCreateUpdateRequest
-    ): Response<RoutineCreateResponse>
-
-    @PUT("api/morning-routines/me/{routine_id}")
-    suspend fun updateRoutine(
-        @Path("routine_id") routineId: String,
-        @Header("X-User-ID") userId: String,
-        @Header("Authorization") authorization: String,
-        @Body request: RoutineCreateUpdateRequest
-    ): Response<RoutineActionResponse>
-
     @Multipart
     @POST("api/emotion")
     suspend fun submitEmotion(
@@ -310,6 +315,12 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: SetWeeklyBudgetRequest
     ): Response<SetWeeklyBudgetResponse>
+
+    @GET("api/morning-routines/wakeup-info")
+    suspend fun getWakeupInfo(
+        @Header("X-User-ID") userId: String,
+        @Header("Authorization") token: String
+    ): Response<WakeupInfoResponse>
 
     @GET("api/center-reports/bi-user")
     suspend fun getCenterReports(

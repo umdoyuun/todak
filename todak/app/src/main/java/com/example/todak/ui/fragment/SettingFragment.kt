@@ -43,6 +43,8 @@ class SettingFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_setting, container, false)
 
+        (activity as? MainActivity)?.setToolbarTitle("설정")
+
         // 음성 호출 스위치 초기 상태 설정 및 리스너
         setupVoiceRecognitionSwitch(view)
 
@@ -50,6 +52,16 @@ class SettingFragment : Fragment() {
         val tokenButton = view.findViewById<Button>(R.id.token)
         tokenButton.setOnClickListener {
             showTokenDialog()
+        }
+
+        // 프로필 버튼 클릭 리스너 설정
+        val profileButton = view.findViewById<Button>(R.id.profile)
+        profileButton.setOnClickListener {
+            val profileFragment = ProfileFragment.newInstance()
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.frame_container, profileFragment)
+                .addToBackStack(null)
+                .commit()
         }
 
         // 로그아웃 버튼 클릭 리스너 설정

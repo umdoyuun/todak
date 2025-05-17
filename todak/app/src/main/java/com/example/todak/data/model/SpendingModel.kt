@@ -21,6 +21,26 @@ data class SpendingResponse(
     val count: Int
 )
 
+data class WakeupInfoResponse(
+    val has_info: Boolean,
+    val target_date: String,
+    val recommended_time: String,
+    val message: String,
+    val has_schedule: Boolean,
+    val next_schedule: NextSchedule?,
+    val budget_status: WeeklyBudgetResponse,
+    val daily_spending: Map<String, Int>
+)
+
+data class NextSchedule(
+    val schedule_id: String,
+    val title: String,
+    val start_time: String,
+    val category: String,
+    val date: String,
+    val is_today: Boolean
+)
+
 data class WeeklyBudgetResponse(
     val has_budget: Boolean,
     val budget_id: String,
@@ -45,3 +65,4 @@ data class SetWeeklyBudgetResponse(
     val message: String,
     val budget_id: String
 )
+
